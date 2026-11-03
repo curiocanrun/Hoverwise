@@ -1,0 +1,31 @@
+PID initial design {'wn_pos': 2.0, 'zeta_pos': 0.9, 'wn_att': 18.0, 'zeta_att': 0.9}: J = 0.0755
+
+PID stage A (outer loop)  (best 5 of 24)
+  J=0.0697  rmse=0.0043  max=0.009  att=1.11deg  TV=59.8  | wn_pos=2.4, zeta_pos=0.7, wn_att=18, zeta_att=0.9
+  J=0.0699  rmse=0.0038  max=0.008  att=1.34deg  TV=72.7  | wn_pos=2.8, zeta_pos=0.7, wn_att=18, zeta_att=0.9
+  J=0.0714  rmse=0.0039  max=0.008  att=1.25deg  TV=67.4  | wn_pos=2.4, zeta_pos=0.9, wn_att=18, zeta_att=0.9
+  J=0.0736  rmse=0.0036  max=0.007  att=1.52deg  TV=82.0  | wn_pos=2.8, zeta_pos=0.9, wn_att=18, zeta_att=0.9
+  J=0.0744  rmse=0.0036  max=0.006  att=1.62deg  TV=87.7  | wn_pos=3.2, zeta_pos=0.7, wn_att=18, zeta_att=0.9
+
+PID stage B (inner loop)  (best 5 of 18)
+  J=0.0585  rmse=0.0055  max=0.012  att=1.54deg  TV=26.8  | wn_pos=2.4, zeta_pos=0.7, wn_att=10, zeta_att=1.1
+  J=0.0593  rmse=0.0058  max=0.013  att=1.72deg  TV=25.5  | wn_pos=2.4, zeta_pos=0.7, wn_att=10, zeta_att=0.9
+  J=0.0608  rmse=0.0045  max=0.010  att=1.40deg  TV=36.8  | wn_pos=2.4, zeta_pos=0.7, wn_att=14, zeta_att=0.7
+  J=0.0610  rmse=0.0062  max=0.014  att=1.99deg  TV=24.2  | wn_pos=2.4, zeta_pos=0.7, wn_att=10, zeta_att=0.7
+  J=0.0612  rmse=0.0045  max=0.010  att=1.28deg  TV=39.3  | wn_pos=2.4, zeta_pos=0.7, wn_att=14, zeta_att=0.9
+
+PID stage C (outer loop, re-check)  (best 5 of 21)
+  J=0.0549  rmse=0.0049  max=0.011  att=1.70deg  TV=33.2  | wn_pos=2.8, zeta_pos=0.7, wn_att=10, zeta_att=1.1
+  J=0.0550  rmse=0.0045  max=0.009  att=1.91deg  TV=40.6  | wn_pos=3.2, zeta_pos=0.7, wn_att=10, zeta_att=1.1
+  J=0.0559  rmse=0.0044  max=0.009  att=1.83deg  TV=37.6  | wn_pos=2.8, zeta_pos=0.9, wn_att=10, zeta_att=1.1
+  J=0.0574  rmse=0.0040  max=0.008  att=2.07deg  TV=45.8  | wn_pos=3.2, zeta_pos=0.9, wn_att=10, zeta_att=1.1
+  J=0.0579  rmse=0.0040  max=0.008  att=1.97deg  TV=42.2  | wn_pos=2.8, zeta_pos=1.1, wn_att=10, zeta_att=1.1
+
+SMC initial design {'lam_p': 2.0, 'k_p': 1.0, 'eps_p': 0.5, 'lam_att': 12.0, 'k_att': 8.0, 'eps_att': 1.0}: J = 0.1047
+
+SMC stage A (outer loop)  (best 5 of 60)
+  J=0.0979  rmse=0.0031  max=0.006  att=1.91deg  TV=72.8  | lam_p=3, k_p=0.5, eps_p=0.5, lam_att=12, k_att=8, eps_att=1
+  J=0.0980  rmse=0.0030  max=0.006  att=2.05deg  TV=78.2  | lam_p=3, k_p=1, eps_p=0.5, lam_att=12, k_att=8, eps_att=1
+  J=0.0982  rmse=0.0030  max=0.006  att=2.05deg  TV=78.2  | lam_p=3, k_p=3, eps_p=1, lam_att=12, k_att=8, eps_att=1
+  J=0.0985  rmse=0.0032  max=0.006  att=1.79deg  TV=67.3  | lam_p=3, k_p=2, eps_p=1, lam_att=12, k_att=8, eps_att=1
+  J=0.0996  rmse=0.0031  max=0.006  att=1.86deg  TV=70.7  | lam_p=2.5, k_p=1, eps_p=0.5, lam_att=12, k_att=8, eps_att=1

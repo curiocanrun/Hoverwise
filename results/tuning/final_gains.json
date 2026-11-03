@@ -1,0 +1,141 @@
+{
+  "pid": {
+    "design": {
+      "wn_pos": 3.2,
+      "zeta_pos": 0.9,
+      "wn_att": 14.0,
+      "zeta_att": 0.7
+    },
+    "J": 0.0803081606147877,
+    "gains": {
+      "Kp_pos": [
+        14.848000000000003,
+        14.848000000000003,
+        21.38112
+      ],
+      "Kd_pos": [
+        6.5600000000000005,
+        6.5600000000000005,
+        7.872
+      ],
+      "Ki_pos": [
+        8.192000000000002,
+        8.192000000000002,
+        14.155776
+      ],
+      "max_int_accel": [
+        2.5,
+        2.5,
+        3.0
+      ],
+      "int_zone": 0.3,
+      "Kp_att": [
+        230.3,
+        230.3,
+        36.848000000000006
+      ],
+      "Kd_att": [
+        21.349999999999998,
+        21.349999999999998,
+        8.54
+      ],
+      "Ki_att": [
+        343.0,
+        343.0,
+        21.952000000000005
+      ],
+      "max_int_att": [
+        4.0,
+        4.0,
+        1.0
+      ],
+      "limits": {
+        "max_tilt_angle": 0.5235987755982988,
+        "max_up_accel": 5.0,
+        "min_specific_thrust": 3.9240000000000004,
+        "max_horizontal_accel": 6.0,
+        "max_torque": [
+          1.0,
+          1.0,
+          0.3
+        ],
+        "max_yaw_error": 0.5235987755982988,
+        "max_euler_rate_ff": 3.0,
+        "rate_feedforward": "reference",
+        "tilt_from_measured_yaw": true,
+        "drag_compensation": true,
+        "rotational_compensation": true
+      }
+    }
+  },
+  "smc": {
+    "design": {
+      "lam_p": 4.0,
+      "k_p": 2.0,
+      "eps_p": 1.0,
+      "lam_att": 12.0,
+      "k_att": 8.0,
+      "eps_att": 2.0
+    },
+    "J": 0.09147100859079331,
+    "gains": {
+      "lambda_p": [
+        4.0,
+        4.0,
+        4.8
+      ],
+      "k_p": [
+        2.0,
+        2.0,
+        2.4
+      ],
+      "K_p": [
+        2.0,
+        2.0,
+        2.5
+      ],
+      "eps_p": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "lambda_att": [
+        12.0,
+        12.0,
+        4.800000000000001
+      ],
+      "k_att": [
+        8.0,
+        8.0,
+        3.2
+      ],
+      "K_att": [
+        15.0,
+        15.0,
+        3.0
+      ],
+      "eps_att": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "limits": {
+        "max_tilt_angle": 0.5235987755982988,
+        "max_up_accel": 5.0,
+        "min_specific_thrust": 3.9240000000000004,
+        "max_horizontal_accel": 6.0,
+        "max_torque": [
+          1.0,
+          1.0,
+          0.3
+        ],
+        "max_yaw_error": 0.5235987755982988,
+        "max_euler_rate_ff": 3.0,
+        "rate_feedforward": "reference",
+        "tilt_from_measured_yaw": true,
+        "drag_compensation": true,
+        "rotational_compensation": true
+      }
+    }
+  }
+}

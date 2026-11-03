@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="surveillance_quadcopter_6dof">
+  <compiler angle="radian" coordinate="local" inertiafromgeom="false" />
+  <option gravity="0 0 -9.81" timestep="0.005" integrator="RK4" />
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1="0.25 0.35 0.2" rgb2="0.2 0.3 0.15" />
+    <material name="ground_mat" texture="grid" texrepeat="20 20" reflectance="0.05" />
+    <material name="body_top" rgba="0.12 0.14 0.18 1" />
+    <material name="body_side" rgba="0.22 0.25 0.30 1" />
+    <material name="arm_mat" rgba="0.10 0.11 0.13 1" />
+    <material name="motor_mat" rgba="0.28 0.30 0.34 1" />
+    <material name="rotor_cw" rgba="0.85 0.16 0.12 0.82" />
+    <material name="rotor_ccw" rgba="0.12 0.42 0.88 0.82" />
+    <material name="camera_mat" rgba="0.055 0.065 0.08 1" />
+    <material name="lens_mat" rgba="0.08 0.18 0.24 1" />
+    <material name="metal_mat" rgba="0.55 0.58 0.62 1" />
+    <material name="obstacle_mat" rgba="0.45 0.30 0.18 1" />
+    <material name="tree_leaf" rgba="0.10 0.42 0.17 1" />
+    <material name="vehicle_mat" rgba="0.80 0.20 0.10 1" />
+    <material name="timber_mat" rgba="0.65 0.45 0.25 1" />
+  </asset>
+
+  <worldbody>
+    <light directional="true" pos="0 -4 18" dir="0 0 -1" diffuse="0.9 0.9 0.9" specular="0.25 0.25 0.25" />
+    <light pos="-6 -4 8" dir="0.4 0.3 -1" diffuse="0.35 0.35 0.35" />
+    <geom name="ground" type="plane" size="50 50 0.1" material="ground_mat" condim="3" />
+
+    
+    <geom name="tree1_trunk" type="cylinder" size="0.4 2.5" pos="5 3 2.5" material="obstacle_mat" />
+    <geom name="tree1_leaves" type="sphere" size="1.4" pos="5 3 5.5" material="tree_leaf" />
+    <geom name="tree2_trunk" type="cylinder" size="0.45 3.0" pos="8 10 3.0" material="obstacle_mat" />
+    <geom name="tree2_leaves" type="sphere" size="1.6" pos="8 10 6.5" material="tree_leaf" />
+    <geom name="tower_obs" type="cylinder" size="0.6 4.0" pos="14 6 4.0" material="obstacle_mat" />
+    <geom name="anomaly_vehicle" type="box" size="1.2 0.6 0.4" pos="6 6 0.4" material="vehicle_mat" />
+    <geom name="anomaly_timber" type="box" size="1.0 1.0 0.3" pos="12 4 0.3" material="timber_mat" />
+
+    
+    <body name="quadcopter" pos="0 0 1.0">
+      <freejoint name="root_joint" />
+      <inertial pos="0 0 0" mass="1.05" diaginertia="0.0081 0.0081 0.0142" />
+
+      
+      <geom name="core_body" type="box" size="0.105 0.085 0.035" pos="0 0 0" material="body_side" contype="0" conaffinity="0" />
+      <geom name="top_deck" type="box" size="0.082 0.067 0.012" pos="0 0 0.043" material="body_top" contype="0" conaffinity="0" />
+      <geom name="front_marker" type="box" size="0.026 0.009 0.004" pos="0.078 0 0.057" material="rotor_cw" contype="0" conaffinity="0" />
+      <geom name="battery_pack" type="box" size="0.060 0.045 0.018" pos="-0.012 0 -0.045" material="body_top" contype="0" conaffinity="0" />
+
+      
+      <geom name="arm_1_3" type="capsule" fromto="0.159 -0.159 0  -0.159 0.159 0" size="0.014" material="arm_mat" contype="0" conaffinity="0" />
+      <geom name="arm_4_2" type="capsule" fromto="0.159 0.159 0  -0.159 -0.159 0" size="0.014" material="arm_mat" contype="0" conaffinity="0" />
+
+      
+      <site name="rotor1_site" pos="0.159 -0.159 0.020" />
+      <geom name="motor1_housing" type="cylinder" size="0.027 0.018" pos="0.159 -0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor1_hub" type="cylinder" size="0.012 0.009" pos="0.159 -0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+      <site name="rotor2_site" pos="-0.159 -0.159 0.020" />
+      <geom name="motor2_housing" type="cylinder" size="0.027 0.018" pos="-0.159 -0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor2_hub" type="cylinder" size="0.012 0.009" pos="-0.159 -0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+      <site name="rotor3_site" pos="-0.159 0.159 0.020" />
+      <geom name="motor3_housing" type="cylinder" size="0.027 0.018" pos="-0.159 0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor3_hub" type="cylinder" size="0.012 0.009" pos="-0.159 0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+      <site name="rotor4_site" pos="0.159 0.159 0.020" />
+      <geom name="motor4_housing" type="cylinder" size="0.027 0.018" pos="0.159 0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor4_hub" type="cylinder" size="0.012 0.009" pos="0.159 0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+      <body name="gimbal_pan_frame" pos="0.075 0 -0.075">
+        <inertial pos="0 0 0" mass="0.025" diaginertia="0.00003 0.00003 0.00004" />
+        <joint name="gimbal_pan_joint" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="0.02" />
+        <geom name="gimbal_pan_yoke" type="box" size="0.047 0.036 0.010" pos="0 0 0" material="metal_mat" contype="0" conaffinity="0" />
+        <body name="gimbal_tilt_frame" pos="0 0 -0.025">
+          <inertial pos="0 0 -0.020" mass="0.075" diaginertia="0.00008 0.00008 0.00006" />
+          <joint name="gimbal_tilt_joint" type="hinge" axis="0 1 0" range="-1.5708 1.5708" damping="0.02" />
+          <geom name="gimbal_tilt_side_left" type="capsule" fromto="0 -0.035 0  0 0.035 0" size="0.006" material="metal_mat" contype="0" conaffinity="0" />
+          <geom name="camera_housing" type="box" size="0.038 0.032 0.027" pos="0 0 -0.020" material="camera_mat" contype="0" conaffinity="0" />
+          <geom name="camera_lens" type="cylinder" size="0.020 0.012" pos="0 0 -0.059" material="lens_mat" contype="0" conaffinity="0" />
+          
+          <camera name="surveillance_cam" pos="0 0 -0.059" fovy="60" />
+        </body>
+      </body>
+    <body name="rotor1_spinning_assembly" pos="0.159 -0.159 0.055"><inertial pos="0 0 0" mass="0.001" diaginertia="0.000001 0.000001 0.000002" /><joint name="rotor1_spin_joint" type="hinge" axis="0 0 1" damping="0.0001" /><geom name="rotor1_blade_a" type="capsule" fromto="-0.086 0 0  0 0 0" size="0.008" material="rotor_cw" contype="0" conaffinity="0" /><geom name="rotor1_blade_b" type="capsule" fromto="0 0 0  0.086 0 0" size="0.008" material="rotor_cw" contype="0" conaffinity="0" /></body><body name="rotor2_spinning_assembly" pos="-0.159 -0.159 0.055"><inertial pos="0 0 0" mass="0.001" diaginertia="0.000001 0.000001 0.000002" /><joint name="rotor2_spin_joint" type="hinge" axis="0 0 1" damping="0.0001" /><geom name="rotor2_blade_a" type="capsule" fromto="-0.086 0 0  0 0 0" size="0.008" material="rotor_ccw" contype="0" conaffinity="0" /><geom name="rotor2_blade_b" type="capsule" fromto="0 0 0  0.086 0 0" size="0.008" material="rotor_ccw" contype="0" conaffinity="0" /></body><body name="rotor3_spinning_assembly" pos="-0.159 0.159 0.055"><inertial pos="0 0 0" mass="0.001" diaginertia="0.000001 0.000001 0.000002" /><joint name="rotor3_spin_joint" type="hinge" axis="0 0 1" damping="0.0001" /><geom name="rotor3_blade_a" type="capsule" fromto="-0.086 0 0  0 0 0" size="0.008" material="rotor_cw" contype="0" conaffinity="0" /><geom name="rotor3_blade_b" type="capsule" fromto="0 0 0  0.086 0 0" size="0.008" material="rotor_cw" contype="0" conaffinity="0" /></body><body name="rotor4_spinning_assembly" pos="0.159 0.159 0.055"><inertial pos="0 0 0" mass="0.001" diaginertia="0.000001 0.000001 0.000002" /><joint name="rotor4_spin_joint" type="hinge" axis="0 0 1" damping="0.0001" /><geom name="rotor4_blade_a" type="capsule" fromto="-0.086 0 0  0 0 0" size="0.008" material="rotor_ccw" contype="0" conaffinity="0" /><geom name="rotor4_blade_b" type="capsule" fromto="0 0 0  0.086 0 0" size="0.008" material="rotor_ccw" contype="0" conaffinity="0" /></body></body>
+  </worldbody>
+
+  <actuator>
+    <motor name="motor_rotor1" site="rotor1_site" gear="0 0 1 0 0 -0.038" ctrlrange="0 12" />
+    <motor name="motor_rotor2" site="rotor2_site" gear="0 0 1 0 0 0.038" ctrlrange="0 12" />
+    <motor name="motor_rotor3" site="rotor3_site" gear="0 0 1 0 0 -0.038" ctrlrange="0 12" />
+    <motor name="motor_rotor4" site="rotor4_site" gear="0 0 1 0 0 0.038" ctrlrange="0 12" />
+    <position name="gimbal_pan_servo" joint="gimbal_pan_joint" kp="8" ctrlrange="-3.14159 3.14159" />
+    <position name="gimbal_tilt_servo" joint="gimbal_tilt_joint" kp="8" ctrlrange="-1.5708 1.5708" />
+  <velocity name="rotor1_spin_motor" joint="rotor1_spin_joint" kv="0.00001" ctrlrange="-100 100" /><velocity name="rotor2_spin_motor" joint="rotor2_spin_joint" kv="0.00001" ctrlrange="-100 100" /><velocity name="rotor3_spin_motor" joint="rotor3_spin_joint" kv="0.00001" ctrlrange="-100 100" /><velocity name="rotor4_spin_motor" joint="rotor4_spin_joint" kv="0.00001" ctrlrange="-100 100" /></actuator>
+</mujoco>

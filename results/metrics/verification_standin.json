@@ -1,0 +1,57 @@
+{
+  "engine": "STAND-IN rigid-body engine (NOT MuJoCo)",
+  "is_real_mujoco": false,
+  "allocation_consistent": true,
+  "M_mjcf": [
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      -0.159,
+      -0.159,
+      0.159,
+      0.159
+    ],
+    [
+      -0.159,
+      0.159,
+      0.159,
+      -0.159
+    ],
+    [
+      -0.038,
+      0.038,
+      -0.038,
+      0.038
+    ]
+  ],
+  "open_loop": {
+    "pos_diff_max_m": 0.0018936963072454238,
+    "att_diff_max_deg": 0.17983986027972634,
+    "omega_diff_max": 0.018820024306869243,
+    "att_excursion_deg": 5.950481788275623
+  },
+  "closed_loop": {
+    "Cascaded PID": {
+      "rmse_engine": 0.003706769153930911,
+      "max_error_engine": 0.0119178331769616,
+      "rmse_numpy": 0.003672954305340805,
+      "max_error_numpy": 0.011946945964654176,
+      "cross_engine_rms_m": 8.022818225952157e-05,
+      "max_tilt_engine_deg": 22.90803647077196,
+      "finite": true
+    },
+    "Sliding Mode": {
+      "rmse_engine": 0.003349631261508803,
+      "max_error_engine": 0.008549489871104043,
+      "rmse_numpy": 0.0033027698025340523,
+      "max_error_numpy": 0.008557350328838087,
+      "cross_engine_rms_m": 8.373652271066653e-05,
+      "max_tilt_engine_deg": 24.027875655701102,
+      "finite": true
+    }
+  }
+}

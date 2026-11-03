@@ -1,0 +1,8 @@
+numpy>=1.26
+scipy>=1.11
+matplotlib>=3.8
+pytest>=7
+mujoco>=3.1          # MuJoCo simulation, demo, verification
+imageio>=2.34        # optional: demo video (--video)
+imageio-ffmpeg>=0.5  # optional: demo video (--video)
+pillow>=10           # optional: demo video HUD

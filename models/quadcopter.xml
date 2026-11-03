@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Surveillance quadcopter - MuJoCo scene (Advanced Robotics, Group 1)
+
+  Scene/visual revision (2 Nov 2026).  The previous model is preserved unchanged as
+  models/quadcopter_original_pre_scene_fix.xml.
+
+  What this file guarantees (all checked by tests/test_model_consistency.py):
+    * Actuator ORDER is unchanged:  ctrl[0:4]  rotor thrusts [N]      (motor_rotor1..4)
+                                    ctrl[4:6]  gimbal pan, tilt [rad]  (position servos)
+                                    ctrl[6:10] rotor spin speed [rad/s] (visual propeller drive)
+    * Joint order is unchanged:     free joint (qpos 0:7), pan, tilt (qpos 7,8), rotor1..4 spin (qpos 9:13)
+    * TOTAL mass of the free-flying system = 1.05 kg = QuadcopterParams.mass.  (Gimbal, battery and
+      propeller bodies are explicit child bodies; the root body carries only the remainder, 0.73 kg.
+      Before this revision the children were ADDED to a 1.05 kg root -> 1.154 kg total, so hover
+      thrust computed from QuadcopterParams was ~10 % too low.)
+    * Centre of mass lies on the body z axis (x = y = 0): the camera gimbal's 0.1 kg at x = +0.075 m is
+      balanced by the 0.20 kg battery at x = -0.0375 m.  Therefore the rotor lever arms +-0.159 m are
+      symmetric about the COM and the allocation matrix M matches kinematics.control_allocation_matrix.
+    * Principal inertia of the whole system within ~4 % of QuadcopterParams (Ixx, Iyy, Izz);
+      the residual cannot be removed with a rigid root body (triangle inequality), see README.
+    * Drone collides with ground/obstacles only through its landing skids (contype/conaffinity 1);
+      all other drone geoms are visual only.
+-->
+<mujoco model="surveillance_quadcopter_6dof">
+  <compiler angle="radian" inertiafromgeom="false" />
+  <option gravity="0 0 -9.81" timestep="0.005" integrator="RK4" />
+
+  <statistic center="3 2 1.5" extent="9" meansize="0.1" />
+  <visual>
+    <global offwidth="1280" offheight="720" azimuth="125" elevation="-20" />
+    <quality shadowsize="4096" offsamples="8" />
+    <map znear="0.005" zfar="300" />
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.55 0.55 0.55" specular="0.05 0.05 0.05" />
+    <rgba haze="0.78 0.86 0.94 1" />
+  </visual>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="gradient" rgb1="0.40 0.60 0.86" rgb2="0.86 0.92 0.97" width="512" height="3072" />
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.30 0.42 0.24" rgb2="0.25 0.36 0.20" width="512" height="512" mark="edge" markrgb="0.35 0.47 0.28" />
+    <material name="ground_mat" texture="grid" texuniform="true" texrepeat="0.5 0.5" reflectance="0.0" />
+    <material name="pad_mat" rgba="0.82 0.82 0.80 1" />
+    <material name="pad_mark" rgba="0.95 0.75 0.10 1" />
+
+    <material name="body_top" rgba="0.12 0.14 0.18 1" />
+    <material name="body_side" rgba="0.22 0.25 0.30 1" />
+    <material name="arm_mat" rgba="0.10 0.11 0.13 1" />
+    <material name="motor_mat" rgba="0.28 0.30 0.34 1" />
+    <!-- rotors 2 and 4 spin clockwise seen from above (red), rotors 1 and 3 counter-clockwise (blue) -->
+    <material name="rotor_cw" rgba="0.85 0.16 0.12 1" />
+    <material name="rotor_ccw" rgba="0.12 0.42 0.88 1" />
+    <material name="prop_disc" rgba="0.80 0.85 0.90 0.10" />
+    <material name="camera_mat" rgba="0.055 0.065 0.08 1" />
+    <material name="lens_mat" rgba="0.08 0.18 0.24 1" />
+    <material name="metal_mat" rgba="0.55 0.58 0.62 1" />
+    <material name="skid_mat" rgba="0.08 0.08 0.09 1" />
+    <material name="obstacle_mat" rgba="0.45 0.30 0.18 1" />
+    <material name="tree_leaf" rgba="0.10 0.42 0.17 1" />
+    <material name="vehicle_mat" rgba="0.80 0.20 0.10 1" />
+    <material name="timber_mat" rgba="0.65 0.45 0.25 1" />
+  </asset>
+
+  <worldbody>
+    <light name="sun" directional="true" pos="0 -4 18" dir="0.25 0.15 -1" diffuse="0.85 0.85 0.8" specular="0.2 0.2 0.2" castshadow="true" />
+    <light name="fill" pos="-6 -4 8" dir="0.5 0.3 -0.8" diffuse="0.25 0.25 0.3" specular="0.0 0.0 0.0" castshadow="false" />
+    <geom name="ground" type="plane" size="40 40 0.1" material="ground_mat" condim="3" friction="1 0.005 0.0001" />
+
+    <!-- landing pad at the take-off point (visual only) -->
+    <geom name="pad" type="cylinder" size="0.7 0.002" pos="0 0 0.002" material="pad_mat" contype="0" conaffinity="0" />
+    <geom name="pad_mark_a" type="box" size="0.40 0.035 0.0005" pos="0 0 0.0045" material="pad_mark" contype="0" conaffinity="0" />
+    <geom name="pad_mark_b" type="box" size="0.035 0.40 0.0005" pos="0 0 0.0045" material="pad_mark" contype="0" conaffinity="0" />
+
+    <!-- obstacles / anomaly props (positions unchanged) -->
+    <geom name="tree1_trunk" type="cylinder" size="0.4 2.5" pos="5 3 2.5" material="obstacle_mat" />
+    <geom name="tree1_leaves" type="sphere" size="1.4" pos="5 3 5.5" material="tree_leaf" />
+    <geom name="tree2_trunk" type="cylinder" size="0.45 3.0" pos="8 10 3.0" material="obstacle_mat" />
+    <geom name="tree2_leaves" type="sphere" size="1.6" pos="8 10 6.5" material="tree_leaf" />
+    <geom name="tower_obs" type="cylinder" size="0.6 4.0" pos="14 6 4.0" material="obstacle_mat" />
+    <geom name="anomaly_vehicle" type="box" size="1.2 0.6 0.4" pos="6 6 0.4" material="vehicle_mat" />
+    <geom name="anomaly_timber" type="box" size="1.0 1.0 0.3" pos="12 4 0.3" material="timber_mat" />
+
+    <!-- demo cameras (the onboard gimbal camera 'surveillance_cam' is defined on the drone) -->
+    <camera name="overview_cam" mode="targetbody" target="quadcopter" pos="-3.5 -4.0 2.2" fovy="50" />
+    <camera name="chase_cam" mode="trackcom" pos="-1.4 1.3 0.75" xyaxes="-0.6805 -0.7328 0.0000  0.2678 -0.2486 0.9308" fovy="50" />
+    <camera name="closeup_cam" mode="trackcom" pos="-0.55 0.75 0.28" xyaxes="-0.8064 -0.5914 0.0000  0.1705 -0.2325 0.9575" fovy="45" />
+
+    <!-- spawn pose: resting on the pad on its skids (skid bottom is 0.198 m below the frame origin) -->
+    <body name="quadcopter" pos="0 0 0.2">
+      <freejoint name="root_joint" />
+      <!-- frame + electronics only; see header for the mass / inertia bookkeeping -->
+      <inertial pos="0 0 0" mass="0.73" diaginertia="0.00608 0.00517 0.01124" />
+
+      <geom name="core_body" type="box" size="0.105 0.085 0.035" pos="0 0 0" material="body_side" contype="0" conaffinity="0" />
+      <geom name="top_deck" type="box" size="0.082 0.067 0.012" pos="0 0 0.043" material="body_top" contype="0" conaffinity="0" />
+      <geom name="front_marker" type="box" size="0.026 0.009 0.004" pos="0.078 0 0.057" material="rotor_cw" contype="0" conaffinity="0" />
+
+      <geom name="arm_1_3" type="capsule" fromto="0.159 -0.159 0  -0.159 0.159 0" size="0.014" material="arm_mat" contype="0" conaffinity="0" />
+      <geom name="arm_4_2" type="capsule" fromto="0.159 0.159 0  -0.159 -0.159 0" size="0.014" material="arm_mat" contype="0" conaffinity="0" />
+
+      <!-- landing skids: the ONLY collision geoms of the drone.  Skids + struts are in geom group 2 so that the
+           onboard-camera renders (run_demo.py video / viewer 'onboard' camera) can hide the landing gear,
+           which would otherwise sit in the lens' field of view when the gimbal pans sideways. -->
+      <geom name="skid_left" group="2" type="capsule" fromto="-0.15 0.10 -0.19  0.15 0.10 -0.19" size="0.008" material="skid_mat" contype="1" conaffinity="1" friction="1 0.005 0.0001" />
+      <geom name="skid_right" group="2" type="capsule" fromto="-0.15 -0.10 -0.19  0.15 -0.10 -0.19" size="0.008" material="skid_mat" contype="1" conaffinity="1" friction="1 0.005 0.0001" />
+      <geom name="strut_fl" group="2" type="capsule" fromto="0.09 0.06 -0.03  0.11 0.10 -0.19" size="0.005" material="skid_mat" contype="0" conaffinity="0" />
+      <geom name="strut_fr" group="2" type="capsule" fromto="0.09 -0.06 -0.03  0.11 -0.10 -0.19" size="0.005" material="skid_mat" contype="0" conaffinity="0" />
+      <geom name="strut_bl" group="2" type="capsule" fromto="-0.09 0.06 -0.03  -0.11 0.10 -0.19" size="0.005" material="skid_mat" contype="0" conaffinity="0" />
+      <geom name="strut_br" group="2" type="capsule" fromto="-0.09 -0.06 -0.03  -0.11 -0.10 -0.19" size="0.005" material="skid_mat" contype="0" conaffinity="0" />
+
+      <!-- thrust sites (rotor order 1..4 = x/y signs (+,-), (-,-), (-,+), (+,+)) and motor housings -->
+      <site name="rotor1_site" pos="0.159 -0.159 0.020" />
+      <geom name="motor1_housing" type="cylinder" size="0.027 0.018" pos="0.159 -0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor1_hub" type="cylinder" size="0.012 0.009" pos="0.159 -0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+      <site name="rotor2_site" pos="-0.159 -0.159 0.020" />
+      <geom name="motor2_housing" type="cylinder" size="0.027 0.018" pos="-0.159 -0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor2_hub" type="cylinder" size="0.012 0.009" pos="-0.159 -0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+      <site name="rotor3_site" pos="-0.159 0.159 0.020" />
+      <geom name="motor3_housing" type="cylinder" size="0.027 0.018" pos="-0.159 0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor3_hub" type="cylinder" size="0.012 0.009" pos="-0.159 0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+      <site name="rotor4_site" pos="0.159 0.159 0.020" />
+      <geom name="motor4_housing" type="cylinder" size="0.027 0.018" pos="0.159 0.159 0.020" material="motor_mat" contype="0" conaffinity="0" />
+      <geom name="rotor4_hub" type="cylinder" size="0.012 0.009" pos="0.159 0.159 0.047" material="metal_mat" contype="0" conaffinity="0" />
+
+      <!-- translucent rotor discs (static): give the impression of motion blur at speed -->
+      <geom name="rotor1_disc" type="cylinder" size="0.10 0.0005" pos="0.159 -0.159 0.056" material="prop_disc" contype="0" conaffinity="0" />
+      <geom name="rotor2_disc" type="cylinder" size="0.10 0.0005" pos="-0.159 -0.159 0.056" material="prop_disc" contype="0" conaffinity="0" />
+      <geom name="rotor3_disc" type="cylinder" size="0.10 0.0005" pos="-0.159 0.159 0.056" material="prop_disc" contype="0" conaffinity="0" />
+      <geom name="rotor4_disc" type="cylinder" size="0.10 0.0005" pos="0.159 0.159 0.056" material="prop_disc" contype="0" conaffinity="0" />
+
+      <!-- battery: explicit mass so that the COM stays on the z axis (balances the camera gimbal) -->
+      <body name="battery" pos="-0.0375 0 -0.045">
+        <inertial pos="0 0 0" mass="0.20" diaginertia="0.000156 0.00026 0.00037" />
+        <geom name="battery_pack" type="box" size="0.060 0.045 0.018" pos="0 0 0" material="body_top" contype="0" conaffinity="0" />
+      </body>
+
+      <!-- 2-DOF camera gimbal: pan about body z, then tilt about the pan frame's y -->
+      <body name="gimbal_pan_frame" pos="0.075 0 -0.075">
+        <inertial pos="0 0 0" mass="0.025" diaginertia="0.00003 0.00003 0.00004" />
+        <joint name="gimbal_pan_joint" type="hinge" axis="0 0 1" range="-3.14159 3.14159" damping="0.05" armature="0.0002" />
+        <geom name="gimbal_pan_yoke" type="box" size="0.047 0.036 0.010" pos="0 0 0" material="metal_mat" contype="0" conaffinity="0" />
+        <body name="gimbal_tilt_frame" pos="0 0 -0.025">
+          <inertial pos="0 0 -0.020" mass="0.075" diaginertia="0.00008 0.00008 0.00006" />
+          <joint name="gimbal_tilt_joint" type="hinge" axis="0 1 0" range="-1.5708 1.5708" damping="0.05" armature="0.0002" />
+          <geom name="gimbal_tilt_side_left" type="capsule" fromto="0 -0.035 0  0 0.035 0" size="0.006" material="metal_mat" contype="0" conaffinity="0" />
+          <geom name="camera_housing" type="box" size="0.038 0.032 0.027" pos="0 0 -0.020" material="camera_mat" contype="0" conaffinity="0" />
+          <geom name="camera_lens" type="cylinder" size="0.020 0.012" pos="0 0 -0.059" material="lens_mat" contype="0" conaffinity="0" />
+          <!-- optical axis = -z of the camera frame (straight down at tilt = 0); image-up points to body +x at tilt = 0 -->
+          <camera name="surveillance_cam" pos="0 0 -0.059" xyaxes="0 -1 0  1 0 0" fovy="60" />
+        </body>
+      </body>
+
+      <!-- four independently spinning propeller assemblies.  Hub spin inertia = QuadcopterParams.I_rotor. -->
+      <body name="rotor1_spinning_assembly" pos="0.159 -0.159 0.055">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.0000075 0.0000075 0.000015" />
+        <joint name="rotor1_spin_joint" type="hinge" axis="0 0 1" damping="0.000001" />
+        <geom name="rotor1_blade_a" type="box" size="0.047 0.012 0.002" pos="-0.055 0 0" euler="0 0 0.2" material="rotor_ccw" contype="0" conaffinity="0" />
+        <geom name="rotor1_blade_b" type="box" size="0.047 0.012 0.002" pos="0.055 0 0" euler="0 0 0.2" material="rotor_ccw" contype="0" conaffinity="0" />
+      </body>
+      <body name="rotor2_spinning_assembly" pos="-0.159 -0.159 0.055">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.0000075 0.0000075 0.000015" />
+        <joint name="rotor2_spin_joint" type="hinge" axis="0 0 1" damping="0.000001" />
+        <geom name="rotor2_blade_a" type="box" size="0.047 0.012 0.002" pos="-0.055 0 0" euler="0 0 -0.2" material="rotor_cw" contype="0" conaffinity="0" />
+        <geom name="rotor2_blade_b" type="box" size="0.047 0.012 0.002" pos="0.055 0 0" euler="0 0 -0.2" material="rotor_cw" contype="0" conaffinity="0" />
+      </body>
+      <body name="rotor3_spinning_assembly" pos="-0.159 0.159 0.055">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.0000075 0.0000075 0.000015" />
+        <joint name="rotor3_spin_joint" type="hinge" axis="0 0 1" damping="0.000001" />
+        <geom name="rotor3_blade_a" type="box" size="0.047 0.012 0.002" pos="-0.055 0 0" euler="0 0 0.2" material="rotor_ccw" contype="0" conaffinity="0" />
+        <geom name="rotor3_blade_b" type="box" size="0.047 0.012 0.002" pos="0.055 0 0" euler="0 0 0.2" material="rotor_ccw" contype="0" conaffinity="0" />
+      </body>
+      <body name="rotor4_spinning_assembly" pos="0.159 0.159 0.055">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.0000075 0.0000075 0.000015" />
+        <joint name="rotor4_spin_joint" type="hinge" axis="0 0 1" damping="0.000001" />
+        <geom name="rotor4_blade_a" type="box" size="0.047 0.012 0.002" pos="-0.055 0 0" euler="0 0 -0.2" material="rotor_cw" contype="0" conaffinity="0" />
+        <geom name="rotor4_blade_b" type="box" size="0.047 0.012 0.002" pos="0.055 0 0" euler="0 0 -0.2" material="rotor_cw" contype="0" conaffinity="0" />
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- ctrl[0:4]: rotor thrust [N] along the site z axis; yaw reaction torque = -+0.038 * thrust (k_drag/k_thrust) -->
+    <motor name="motor_rotor1" site="rotor1_site" gear="0 0 1 0 0 -0.038" ctrlrange="0 12" />
+    <motor name="motor_rotor2" site="rotor2_site" gear="0 0 1 0 0 0.038" ctrlrange="0 12" />
+    <motor name="motor_rotor3" site="rotor3_site" gear="0 0 1 0 0 -0.038" ctrlrange="0 12" />
+    <motor name="motor_rotor4" site="rotor4_site" gear="0 0 1 0 0 0.038" ctrlrange="0 12" />
+    <!-- ctrl[4:6]: gimbal angle targets [rad].  Servo: kp = 3 N m/rad, joint damping 0.05 N m s/rad, rotor-side
+         armature 2e-4 kg m^2 -> natural frequency ~100 rad/s, damping ratio ~0.85 (measured step response in
+         tests/test_gimbal_axes.py).  The previous kp = 8 / damping 0.02 / no armature rang at zeta ~0.2-0.4. -->
+    <position name="gimbal_pan_servo" joint="gimbal_pan_joint" kp="3" ctrlrange="-3.14159 3.14159" />
+    <position name="gimbal_tilt_servo" joint="gimbal_tilt_joint" kp="3" ctrlrange="-1.5708 1.5708" />
+    <!-- ctrl[6:10]: propeller spin speed targets [rad/s].  time constant = I_rotor/kv = 1.5e-5/5e-4 = 30 ms,
+         lambda*dt = 0.17 for RK4 at dt = 5 ms (well inside the explicit stability limit ~2.8). -->
+    <velocity name="rotor1_spin_motor" joint="rotor1_spin_joint" kv="0.0005" ctrlrange="-100 100" />
+    <velocity name="rotor2_spin_motor" joint="rotor2_spin_joint" kv="0.0005" ctrlrange="-100 100" />
+    <velocity name="rotor3_spin_motor" joint="rotor3_spin_joint" kv="0.0005" ctrlrange="-100 100" />
+    <velocity name="rotor4_spin_motor" joint="rotor4_spin_joint" kv="0.0005" ctrlrange="-100 100" />
+  </actuator>
+</mujoco>

@@ -1,0 +1,56 @@
+PID initial design {'wn_pos': 2.0, 'zeta_pos': 0.9, 'wn_att': 18.0, 'zeta_att': 0.9}: J = 0.1248
+
+PID stage A (outer loop)  (best 5 of 24)
+  J=0.1075  rmse=0.0036  max=0.006  att=1.62deg  TV=87.7  | wn_pos=3.2, zeta_pos=0.7, wn_att=18, zeta_att=0.9
+  J=0.1094  rmse=0.0038  max=0.008  att=1.34deg  TV=72.7  | wn_pos=2.8, zeta_pos=0.7, wn_att=18, zeta_att=0.9
+  J=0.1103  rmse=0.0035  max=0.006  att=1.93deg  TV=104.9  | wn_pos=3.6, zeta_pos=0.7, wn_att=18, zeta_att=0.9
+  J=0.1105  rmse=0.0036  max=0.007  att=1.52deg  TV=82.0  | wn_pos=2.8, zeta_pos=0.9, wn_att=18, zeta_att=0.9
+  J=0.1115  rmse=0.0034  max=0.006  att=1.82deg  TV=98.8  | wn_pos=3.2, zeta_pos=0.9, wn_att=18, zeta_att=0.9
+
+PID stage B (inner loop)  (best 5 of 21)
+  J=0.0927  rmse=0.0049  max=0.011  att=2.32deg  TV=37.1  | wn_pos=3.2, zeta_pos=0.7, wn_att=10, zeta_att=0.7
+  J=0.0928  rmse=0.0038  max=0.007  att=1.83deg  TV=54.7  | wn_pos=3.2, zeta_pos=0.7, wn_att=14, zeta_att=0.7
+  J=0.0955  rmse=0.0047  max=0.010  att=2.06deg  TV=38.8  | wn_pos=3.2, zeta_pos=0.7, wn_att=10, zeta_att=0.9
+  J=0.0969  rmse=0.0038  max=0.007  att=1.72deg  TV=58.3  | wn_pos=3.2, zeta_pos=0.7, wn_att=14, zeta_att=0.9
+  J=0.0989  rmse=0.0045  max=0.009  att=1.91deg  TV=40.6  | wn_pos=3.2, zeta_pos=0.7, wn_att=10, zeta_att=1.1
+
+PID stage C (outer loop, re-check)  (best 5 of 21)
+  J=0.0900  rmse=0.0046  max=0.010  att=2.55deg  TV=45.0  | wn_pos=3.6, zeta_pos=0.7, wn_att=10, zeta_att=0.7
+  J=0.0927  rmse=0.0049  max=0.011  att=2.32deg  TV=37.1  | wn_pos=3.2, zeta_pos=0.7, wn_att=10, zeta_att=0.7
+  J=0.0930  rmse=0.0040  max=0.009  att=2.76deg  TV=50.5  | wn_pos=3.6, zeta_pos=0.9, wn_att=10, zeta_att=0.7
+  J=0.0933  rmse=0.0041  max=0.009  att=3.20deg  TV=63.6  | wn_pos=4.4, zeta_pos=0.7, wn_att=10, zeta_att=0.7
+  J=0.0938  rmse=0.0043  max=0.009  att=2.47deg  TV=41.9  | wn_pos=3.2, zeta_pos=0.9, wn_att=10, zeta_att=0.7
+
+SMC initial design {'lam_p': 2.0, 'k_p': 1.0, 'eps_p': 0.5, 'lam_att': 12.0, 'k_att': 8.0, 'eps_att': 1.0}: J = 0.1347
+
+SMC stage A (outer loop)  (best 5 of 72)
+  J=0.1239  rmse=0.0030  max=0.006  att=2.11deg  TV=80.3  | lam_p=4, k_p=2, eps_p=1, lam_att=12, k_att=8, eps_att=1
+  J=0.1249  rmse=0.0030  max=0.006  att=2.05deg  TV=78.2  | lam_p=3, k_p=3, eps_p=1, lam_att=12, k_att=8, eps_att=1
+  J=0.1254  rmse=0.0029  max=0.005  att=2.45deg  TV=93.1  | lam_p=4, k_p=3, eps_p=1, lam_att=12, k_att=8, eps_att=1
+  J=0.1261  rmse=0.0029  max=0.005  att=2.33deg  TV=88.9  | lam_p=3, k_p=2, eps_p=0.5, lam_att=12, k_att=8, eps_att=1
+  J=0.1265  rmse=0.0030  max=0.006  att=2.05deg  TV=78.2  | lam_p=3, k_p=1, eps_p=0.5, lam_att=12, k_att=8, eps_att=1
+
+SMC stage B (inner loop)  (best 5 of 84)
+  J=0.1193  rmse=0.0031  max=0.006  att=2.19deg  TV=62.8  | lam_p=4, k_p=2, eps_p=1, lam_att=12, k_att=8, eps_att=2
+  J=0.1204  rmse=0.0032  max=0.007  att=2.37deg  TV=52.8  | lam_p=4, k_p=2, eps_p=1, lam_att=12, k_att=4, eps_att=2
+  J=0.1207  rmse=0.0032  max=0.007  att=2.30deg  TV=53.7  | lam_p=4, k_p=2, eps_p=1, lam_att=9, k_att=8, eps_att=2
+  J=0.1208  rmse=0.0031  max=0.006  att=2.21deg  TV=61.9  | lam_p=4, k_p=2, eps_p=1, lam_att=16, k_att=4, eps_att=2
+  J=0.1211  rmse=0.0031  max=0.006  att=2.17deg  TV=61.6  | lam_p=4, k_p=2, eps_p=1, lam_att=9, k_att=12, eps_att=2
+
+SMC stage C (outer loop, re-check)  (best 5 of 35)
+  J=0.1192  rmse=0.0030  max=0.006  att=2.32deg  TV=67.4  | lam_p=3.5, k_p=3, eps_p=1, lam_att=12, k_att=8, eps_att=2
+  J=0.1193  rmse=0.0031  max=0.006  att=2.19deg  TV=62.8  | lam_p=4, k_p=2, eps_p=1, lam_att=12, k_att=8, eps_att=2
+  J=0.1195  rmse=0.0029  max=0.006  att=2.52deg  TV=74.0  | lam_p=4, k_p=3, eps_p=1, lam_att=12, k_att=8, eps_att=2
+  J=0.1205  rmse=0.0031  max=0.006  att=2.14deg  TV=61.0  | lam_p=3, k_p=3, eps_p=1, lam_att=12, k_att=8, eps_att=2
+  J=0.1207  rmse=0.0032  max=0.006  att=2.03deg  TV=57.3  | lam_p=3.5, k_p=2, eps_p=1, lam_att=12, k_att=8, eps_att=2
+
+Desired-attitude-rate feed-forward study (tuning mission, nominal):
+  pid_none        J=0.1254 rmse=0.0248 att=5.76deg
+  pid_reference   J=0.0857 rmse=0.0068 att=2.98deg
+  pid_full        J=0.0900 rmse=0.0046 att=2.55deg
+  smc_none        J=0.1452 rmse=0.0217 att=6.56deg
+  smc_reference   J=0.0917 rmse=0.0035 att=2.43deg
+  smc_full        J=0.1192 rmse=0.0030 att=2.32deg
+
+Final gains written to /home/claude/work/extracted/quadcopter_project/results/tuning/final_gains.json
+PID design: {'wn_pos': 3.6, 'zeta_pos': 0.7, 'wn_att': 10.0, 'zeta_att': 0.7}  SMC design: {'lam_p': 3.5, 'k_p': 3.0, 'eps_p': 1.0, 'lam_att': 12.0, 'k_att': 8.0, 'eps_att': 2.0}

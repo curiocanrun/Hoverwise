@@ -1,0 +1,312 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{amsmath,amssymb,bm,mathtools}
+\usepackage{booktabs,tabularx,array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\newcommand{\skew}[1]{[#1]_\times}
+\title{\textbf{Mathematical Model of a Quadcopter with a Two-Axis Gimballed Camera}\\
+\large Aerial Surveillance and Anomaly Detection}
+\author{Robot Modeling and Control Project}
+\date{29 October 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This document gives a symbolic rigid-body model of a four-rotor aerial vehicle carrying a two-axis pan--tilt camera. It defines degrees of freedom, coordinate frames, angle conventions, homogeneous transformations, translation and rotation dynamics, rotor thrust and torque, gimbal kinematics, and camera pose. Parameters are left symbolic until they are extracted from the selected simulation model or measured. Anomaly detection is treated as a perception module operating on camera images.
+\end{abstract}
+\tableofcontents
+\newpage
+
+\section{System and assumptions}
+The system comprises (i) a rigid quadcopter body, (ii) four independently driven rotors, (iii) a two-revolute-joint pan--tilt gimbal, and (iv) a camera fixed to the final gimbal link. A perception pipeline processes the resulting images.
+
+Baseline assumptions:
+\begin{itemize}[leftmargin=1.4em]
+\item The vehicle is rigid, with mass \(m\) and body-frame inertia \(I_B\).
+\item Rotor thrust and reaction torque are proportional to squared rotor speed.
+\item The inertial world frame has \(z_W\) pointing upward, with gravity \(-g\mathbf e_3\).
+\item Net rotor thrust acts along \(+z_B\). If the chosen simulator uses the opposite convention, signs must be changed consistently.
+\item Gimbal joints are ideal revolute joints; actuator lag, joint limits, aerodynamic drag, wind, rotor gyroscopic effects, and motor electrical dynamics are omitted initially.
+\end{itemize}
+
+\section{Degrees of freedom}
+A free rigid body has six pose DOF: three translations and three rotations. The quadcopter body configuration is
+\[
+q_B=[x,y,z,\phi,\theta,\psi]^{\mathsf T},
+\]
+where \(x,y,z\) are position and \(\phi,\theta,\psi\) are roll, pitch, yaw under the convention below. Four rotor inputs control this six-DOF body, so the flight vehicle is underactuated.
+
+The two-axis gimbal adds pan and tilt coordinates \(\alpha,\beta\). The complete mechanical configuration is
+\[
+q=[x,y,z,\phi,\theta,\psi,\alpha,\beta]^{\mathsf T}\in\mathbb R^8.
+\]
+Thus the body-plus-gimbal mechanism has eight configuration DOF. If actively controlled, the system has four rotor commands plus two gimbal actuator commands; the body pose is still not independently actuated in all six coordinates.
+
+Configuration DOF are not the same as state-vector length. A state also includes velocities. We use world translational velocity \(\mathbf v_W\), body angular velocity \(\boldsymbol\omega_B=[p_B,q_B,r_B]^{\mathsf T}\), and gimbal rates \(\dot\alpha,\dot\beta\). Body angular velocity is not generally identical to Euler-angle rates.
+
+\section{Frames and homogeneous transformations}
+Following the superscript/subscript convention used in robot kinematics, \({}^{A}T_B\) maps coordinates expressed in frame \(B\) into frame \(A\). Define:
+\begin{itemize}[leftmargin=1.4em]
+\item \(\{W\}\): inertial/world frame;
+\item \(\{B\}\): quadcopter body frame, preferably with origin at its centre of mass;
+\item \(\{G\}\): fixed gimbal-base frame;
+\item \(\{C\}\): camera optical frame.
+\end{itemize}
+A homogeneous transform is
+\[
+{}^{A}T_B=\begin{bmatrix}{}^{A}R_B&{}^{A}\mathbf p_B\\
+\mathbf0^{\mathsf T}&1\end{bmatrix},
+\]
+where \({}^{A}R_B\in SO(3)\) is the orientation of frame \(B\) relative to \(A\), and \({}^{A}\mathbf p_B\) is the origin of \(B\) expressed in \(A\). A homogeneous point transforms as
+\[
+{}^{A}\bar{\mathbf r}={}^{A}T_B\,{}^{B}\bar{\mathbf r}.
+\]
+Composition follows frame labels:
+\[
+{}^{W}T_C={}^WT_B\,{}^BT_G\,{}^GT_{G_1}(\alpha)\,
+{}^{G_1}T_{G_2}(\beta)\,{}^{G_2}T_C.
+\]
+This is the key forward-kinematics chain from vehicle to camera.
+
+\section{Angle convention and rotation matrices}
+\label{sec:angles}
+For this model, we explicitly choose the aerospace roll--pitch--yaw ZYX convention
+\[
+{}^WR_B=R_z(\psi)R_y(\theta)R_x(\phi).
+\]
+The rightmost matrix acts first on a body-coordinate vector. This is a modelling choice, not the only Euler-angle convention discussed in Spong et al.; always state the convention rather than assuming one.
+
+\[
+R_x(\phi)=\begin{bmatrix}1&0&0\\0&\cos\phi&-\sin\phi\\0&\sin\phi&\cos\phi\end{bmatrix},
+\quad
+R_y(\theta)=\begin{bmatrix}\cos\theta&0&\sin\theta\\0&1&0\\-\sin\theta&0&\cos\theta\end{bmatrix},
+\]
+\[
+R_z(\psi)=\begin{bmatrix}\cos\psi&-\sin\psi&0\\\sin\psi&\cos\psi&0\\0&0&1\end{bmatrix}.
+\]
+Writing \(c_\phi=\cos\phi\), \(s_\phi=\sin\phi\), and similarly for other angles,
+\[
+{}^WR_B=\begin{bmatrix}
+c_\psi c_\theta&c_\psi s_\theta s_\phi-s_\psi c_\phi&c_\psi s_\theta c_\phi+s_\psi s_\phi\\
+s_\psi c_\theta&s_\psi s_\theta s_\phi+c_\psi c_\phi&s_\psi s_\theta c_\phi-c_\psi s_\phi\\
+-s_\theta&c_\theta s_\phi&c_\theta c_\phi
+\end{bmatrix}.
+\]
+Use radians in equations and simulation. Convert degrees to radians before computation.
+
+\section{Body pose and kinematics}
+Let \(\mathbf p_W=[x,y,z]^{\mathsf T}\). The body transform is
+\[
+{}^WT_B=\begin{bmatrix}{}^WR_B&\mathbf p_W\\\mathbf0^{\mathsf T}&1\end{bmatrix}.
+\]
+Let \(\mathbf v_W=\dot{\mathbf p}_W\), and let \(\boldsymbol\omega_B=[p_B,q_B,r_B]^{\mathsf T}\) be angular velocity expressed in body coordinates. The rotation matrix obeys
+\[
+\dot R=R\skew{\boldsymbol\omega_B},\qquad
+\skew{\boldsymbol\omega_B}=
+\begin{bmatrix}0&-r_B&q_B\\r_B&0&-p_B\\-q_B&p_B&0\end{bmatrix}.
+\]
+For the ZYX convention, away from \(\cos\theta=0\),
+\[
+\begin{bmatrix}p_B\\q_B\\r_B\end{bmatrix}=
+\begin{bmatrix}
+1&0&-\sin\theta\\
+0&\cos\phi&\sin\phi\cos\theta\\
+0&-\sin\phi&\cos\phi\cos\theta
+\end{bmatrix}
+\begin{bmatrix}\dot\phi\\\dot\theta\\\dot\psi\end{bmatrix}.
+\]
+Equivalently,
+\[
+\begin{bmatrix}\dot\phi\\\dot\theta\\\dot\psi\end{bmatrix}=
+\begin{bmatrix}
+1&\sin\phi\tan\theta&\cos\phi\tan\theta\\
+0&\cos\phi&-\sin\phi\\
+0&\sin\phi/\cos\theta&\cos\phi/\cos\theta
+\end{bmatrix}
+\begin{bmatrix}p_B\\q_B\\r_B\end{bmatrix}.
+\]
+Euler angles are singular at \(\theta=\pm\pi/2\); a quaternion or rotation-matrix representation can be preferable in simulation.
+
+\section{Rotor thrust, reaction torque, and allocation}
+For rotor \(i\), let \(\Omega_i\) be angular speed, \(k_f\) the thrust coefficient, and \(k_m\) the reaction-torque coefficient:
+\[
+f_i=k_f\Omega_i^2,\qquad q_i=s_i k_m\Omega_i^2,\qquad
+T=\sum_{i=1}^4f_i=k_f\sum_{i=1}^4\Omega_i^2.
+\]
+Here \(s_i\in\{-1,+1\}\) records the sign associated with rotor spin direction under the selected axis convention. Coefficients must match the speed units (e.g. rad/s versus RPM).
+
+The total thrust force in world coordinates is
+\[
+\mathbf F_T^W={}^WR_B\begin{bmatrix}0\\0\\T\end{bmatrix}.
+\]
+Let the rotor position relative to the body centre of mass be \(\mathbf r_i^B=[x_i,y_i,z_i]^{\mathsf T}\). The thrust moment is
+\[
+\boldsymbol\tau_{i,\mathrm{thrust}}^B=
+\mathbf r_i^B\times\begin{bmatrix}0\\0\\f_i\end{bmatrix}
+=\begin{bmatrix}y_i f_i\\-x_i f_i\\0\end{bmatrix},
+\]
+and the reaction moment is
+\[
+\boldsymbol\tau_{i,\mathrm{reaction}}^B=
+\begin{bmatrix}0\\0\\s_i k_m\Omega_i^2\end{bmatrix}.
+\]
+Thus
+\[
+\boldsymbol\tau_B=\sum_{i=1}^4\left[
+\mathbf r_i^B\times\begin{bmatrix}0\\0\\k_f\Omega_i^2\end{bmatrix}
++\begin{bmatrix}0\\0\\s_i k_m\Omega_i^2\end{bmatrix}\right].
+\]
+With \(\mathbf u_\Omega=[\Omega_1^2,\Omega_2^2,\Omega_3^2,\Omega_4^2]^{\mathsf T}\),
+\[
+\begin{bmatrix}T\\\tau_x\\\tau_y\\\tau_z\end{bmatrix}=A\mathbf u_\Omega,\quad
+A=\begin{bmatrix}
+k_f&k_f&k_f&k_f\\
+y_1k_f&y_2k_f&y_3k_f&y_4k_f\\
+-x_1k_f&-x_2k_f&-x_3k_f&-x_4k_f\\
+s_1k_m&s_2k_m&s_3k_m&s_4k_m
+\end{bmatrix}.
+\]
+This general allocation matrix assumes thrust along \(+z_B\). Rotor numbering, positions, spin directions, and axis conventions determine the signs. Do not substitute a numerical matrix until these have been verified from the selected model. Motor limits impose \(0\leq\Omega_i\leq\Omega_{i,\max}\).
+
+\section{Translational dynamics}
+Newton's second law, with external force \(\mathbf f_{\mathrm{ext}}^W\), gives
+\[
+m\ddot{\mathbf p}_W={}^WR_B\begin{bmatrix}0\\0\\T\end{bmatrix}
+-mg\mathbf e_3+\mathbf f_{\mathrm{ext}}^W,
+\quad \mathbf e_3=[0,0,1]^{\mathsf T}.
+\]
+Therefore,
+\[
+\dot{\mathbf p}_W=\mathbf v_W,\qquad
+\dot{\mathbf v}_W=\frac{T}{m}{}^WR_B\mathbf e_3-g\mathbf e_3+
+\frac{\mathbf f_{\mathrm{ext}}^W}{m}.
+\]
+Optional linear drag can be added as \(\mathbf f_{\mathrm{drag}}^W=-D_W\mathbf v_W\), where \(D_W\) is a positive-semidefinite drag matrix. It is not part of the baseline model.
+
+\section{Rotational dynamics}
+Let \(I_B\) be the inertia tensor about the centre of mass expressed in body coordinates. Euler's rigid-body equation is
+\[
+I_B\dot{\boldsymbol\omega}_B+
+\boldsymbol\omega_B\times(I_B\boldsymbol\omega_B)=\boldsymbol\tau_B,
+\]
+hence
+\[
+\dot{\boldsymbol\omega}_B=I_B^{-1}\left[
+\boldsymbol\tau_B-\boldsymbol\omega_B\times(I_B\boldsymbol\omega_B)\right].
+\]
+If the body axes are principal inertia axes, one may use \(I_B=\operatorname{diag}(I_x,I_y,I_z)\). Use this diagonal simplification only when justified by the chosen model or a symmetric-body approximation.
+
+\section{Gimbal and camera forward kinematics}
+For an explicit idealized two-axis arrangement, define pan \(\alpha\) as rotation about the gimbal-base \(z\)-axis, then tilt \(\beta\) about the pan-rotated intermediate \(y\)-axis. The real gimbal's axis directions, zero-angle pose, and offsets must replace these assumptions if different.
+
+Let the fixed body-to-gimbal transform be
+\[
+{}^BT_G=\begin{bmatrix}{}^BR_G&{}^B\mathbf p_G\\\mathbf0^{\mathsf T}&1\end{bmatrix}.
+\]
+Pan joint:
+\[
+{}^GT_{G_1}(\alpha)=
+\begin{bmatrix}R_z(\alpha)&\mathbf0\\\mathbf0^{\mathsf T}&1\end{bmatrix}.
+\]
+Tilt joint:
+\[
+{}^{G_1}T_{G_2}(\beta)=
+\begin{bmatrix}R_y(\beta)&\mathbf d_{\mathrm{tilt}}\\\mathbf0^{\mathsf T}&1\end{bmatrix},
+\]
+where \(\mathbf d_{\mathrm{tilt}}\) is the displacement from pan axis to tilt axis expressed in \(G_1\). Set it to zero only for a coincident-axis idealization. The fixed camera mounting transform is
+\[
+{}^{G_2}T_C=\begin{bmatrix}{}^{G_2}R_C&{}^{G_2}\mathbf p_C\\\mathbf0^{\mathsf T}&1\end{bmatrix}.
+\]
+The camera pose is then
+\[
+{}^WT_C={}^WT_B\,{}^BT_G\,{}^GT_{G_1}(\alpha)\,
+{}^{G_1}T_{G_2}(\beta)\,{}^{G_2}T_C
+=\begin{bmatrix}{}^WR_C&{}^W\mathbf p_C\\\mathbf0^{\mathsf T}&1\end{bmatrix}.
+\]
+Thus \({}^W\mathbf p_C\) is the camera origin in world coordinates and \({}^WR_C\) its orientation. A point in camera coordinates maps to world coordinates through \({}^W\bar{\mathbf r}={}^WT_C\,{}^C\bar{\mathbf r}\). The camera intrinsic matrix, lens distortion, and image projection are separate from this rigid-body kinematics model.
+
+A simple ideal actuator assumption is \(\alpha=\alpha_{\mathrm{cmd}}\), \(\beta=\beta_{\mathrm{cmd}}\). If actuator response matters, one possible second-order model is
+\[
+\ddot\alpha+2\zeta_\alpha\omega_\alpha\dot\alpha+
+\omega_\alpha^2\alpha=\omega_\alpha^2\alpha_{\mathrm{cmd}},
+\]
+\[
+\ddot\beta+2\zeta_\beta\omega_\beta\dot\beta+
+\omega_\beta^2\beta=\omega_\beta^2\beta_{\mathrm{cmd}}.
+\]
+These are optional modelling extensions; use actual gimbal specifications where available.
+
+\section{State, inputs, and outputs}
+One useful state vector is
+\[
+\mathbf x=\begin{bmatrix}
+\mathbf p_W^{\mathsf T}&\boldsymbol\eta^{\mathsf T}&
+\mathbf v_W^{\mathsf T}&\boldsymbol\omega_B^{\mathsf T}&
+\alpha&\beta&\dot\alpha&\dot\beta
+\end{bmatrix}^{\mathsf T},
+\quad \boldsymbol\eta=[\phi,\theta,\psi]^{\mathsf T}.
+\]
+It has 16 scalar entries: eight configuration coordinates plus corresponding velocity information, with body angular velocity related to Euler-angle rates through the mapping above. A control vector may be written
+\[
+\mathbf u=[\Omega_1,\Omega_2,\Omega_3,\Omega_4,u_\alpha,u_\beta]^{\mathsf T}.
+\]
+The first four entries determine \(T,\boldsymbol\tau_B\); \(u_\alpha,u_\beta\) are gimbal commands, interpreted through an ideal or dynamic actuator model.
+
+Outputs can include vehicle pose, camera pose, RGB/depth images, and an anomaly score or class from the perception system. The gimbal adds two camera-pointing DOF, allowing the camera to look in different directions without requiring the body to rotate for every view. It does not add DOF to the vehicle body itself.
+
+\section{Parameters to obtain from the chosen model}
+\begin{center}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}p{0.28\textwidth} X}
+\toprule
+Symbol & Meaning & Where to obtain it\\
+\midrule
+\(m\) & Total mass & Model XML/URDF or measurement; include payload if appropriate.\\
+\(I_B\) & Body inertia tensor & Model XML/URDF or CAD, about the centre of mass.\\
+\(\mathbf r_i^B\) & Rotor locations & Vehicle geometry / model definition.\\
+\(k_f,k_m\) & Thrust and torque coefficients & Selected model or motor/propeller calibration.\\
+\(s_i\) & Reaction-torque signs & Rotor spin directions plus axis convention.\\
+\(\Omega_{i,\max}\) & Maximum rotor speed & Motor specification / simulator model.\\
+\({}^BT_G\) & Body-to-gimbal mount transform & Gimbal mounting geometry.\\
+\({}^{G_2}T_C\) & Camera extrinsics & Camera mount geometry / calibration.\\
+Pan/tilt limits & Joint travel bounds & Gimbal specification or model.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+No numeric parameters are assumed. Do not mix parameters or motor numbering from different vehicle models.
+
+\section{Recommended reference implementations}
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{MuJoCo Menagerie -- Skydio X2:}
+\url{https://github.com/google-deepmind/mujoco_menagerie/tree/main/skydio_x2}. The README describes a simplified MJCF model and states the model assets were provided by Skydio under Apache-2.0.
+\item \textbf{MuJoCo Menagerie:}
+\url{https://github.com/google-deepmind/mujoco_menagerie}. The gallery includes Skydio X2 and Bitcraze Crazyflie 2. Its displayed model ``DoFs'' column should not be confused with the six pose coordinates of a free rigid body in a simulation scene.
+\item \textbf{MuJoCo MPC quadrotor task:}
+\url{https://github.com/google-deepmind/mujoco_mpc/tree/main/mjpc/tasks/quadrotor}. Useful as a task-level integration example based on the Skydio X2 model.
+\item \textbf{gym-pybullet-drones:}
+\url{https://github.com/utiasDSL/gym-pybullet-drones}. This is a separate PyBullet-based simulator with explicit thrust and moment calculations. Use its equations as a reference, but match model-specific rotor ordering, parameters, and signs.
+\end{enumerate}
+
+\section{Validation checklist}
+\begin{enumerate}[leftmargin=1.6em]
+\item Select one model and record its units, body axes, rotor numbering, and spin directions.
+\item Extract mass, inertia, rotor positions, motor constants, and maximum speeds.
+\item Define gimbal axis directions, zero-angle orientation, offsets, and joint limits.
+\item Check the transform chain at zero angles and at a nonzero pan/tilt configuration.
+\item Check hover: for level attitude and no external force, \(T=mg\).
+\item Verify the signs of roll, pitch, and yaw moments against the selected simulator.
+\item Only after validation, add controllers, camera projection, image processing, and anomaly-detection logic.
+\end{enumerate}
+
+\section{Scope and limitations}
+This is a symbolic baseline, not an identified hardware model. It omits aerodynamic drag, rotor gyroscopic effects, motor lag, wind, sensor noise, camera distortion, and detailed gimbal dynamics unless added explicitly. The gimbal axes and camera optical axes are idealized and must be replaced with the actual hardware/model geometry.
+
+\begin{thebibliography}{9}
+\bibitem{spong} M. W. Spong, S. Hutchinson, and M. Vidyasagar, \textit{Robot Modeling and Control}. Use the textbook's homogeneous-transform and rigid-body kinematics framework while stating the chosen angle parameterization explicitly.
+\bibitem{menagerie} Google DeepMind, \textit{MuJoCo Menagerie: Skydio X2 model}. \url{https://github.com/google-deepmind/mujoco_menagerie/tree/main/skydio_x2}
+\bibitem{mujocompc} Google DeepMind, \textit{MuJoCo MPC quadrotor task}. \url{https://github.com/google-deepmind/mujoco_mpc/tree/main/mjpc/tasks/quadrotor}
+\bibitem{drones} \textit{gym-pybullet-drones}, source code and model-specific rotor dynamics. \url{https://github.com/utiasDSL/gym-pybullet-drones}
+\end{thebibliography}
+\end{document}

@@ -1,0 +1,46 @@
+{
+  "finite": true,
+  "flight_time_s": 33.335,
+  "max_altitude_m": 2.5006953220502415,
+  "position_rmse_m": 0.0020111244910998305,
+  "position_max_error_m": 0.008191756014972018,
+  "hover_position_rmse_m": 0.00212106926151276,
+  "max_roll_pitch_deg": 15.451509438518508,
+  "touchdown_height_m": 0.2000743369949377,
+  "final_height_m": 0.19790179455054577,
+  "final_xy_error_m": 7.426469799817973e-06,
+  "touchdown_vertical_speed_mps": -0.0015055727452655294,
+  "thrust_min_N": 0.298,
+  "thrust_max_N": 3.3544324800529024,
+  "prop_mean_speed_rad_s": [
+    35.41415107084159,
+    -35.26962072731968,
+    35.23267989597111,
+    -35.37532703150002
+  ],
+  "prop_mean_speed_rpm": [
+    338.18023189965464,
+    336.8000687837578,
+    336.4473098290948,
+    337.8094896333344
+  ],
+  "prop_directions": [
+    "CCW",
+    "CW",
+    "CCW",
+    "CW"
+  ],
+  "physical_rotor_speed_hover_rad_s": 294.94675174481233,
+  "gimbal_pan_range_deg": [
+    -89.98629346105008,
+    89.98686164246
+  ],
+  "gimbal_tilt_range_deg": [
+    -89.71113931257973,
+    0.05370026299650452
+  ],
+  "gimbal_servo_error_p95_deg": 2.0010167730293054,
+  "anomaly_los_error_mean_deg": 0.5333731918713331,
+  "anomaly_los_error_max_deg": 2.5181704290312243,
+  "controller": "Cascaded PID"
+}
