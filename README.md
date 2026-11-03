@@ -210,7 +210,7 @@ Further details are available in:
 - Shreedhanvi
 - Maanya Sri
 
-Advanced Robotics · Course Project
+Robotics · Course Project
 
 ---
 
