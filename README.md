@@ -1,6 +1,6 @@
 # 6-DOF Quadcopter for Aerial Surveillance and Anomaly Detection
 
-**Advanced Robotics Course Project · Group 1**
+**Robotics Course Project · Group 1**
 
 A simulation-based autonomous quadcopter system integrating nonlinear flight dynamics, trajectory planning, feedback control, obstacle avoidance, and a gimballed surveillance camera with simulated anomaly detection.
 
