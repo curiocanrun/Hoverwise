@@ -71,6 +71,7 @@ quadcopter_project/
 │   ├── mujoco_sim.py
 │   ├── mujoco_standin.py
 │   ├── path_planning.py
+│   ├── planning_pipeline.py
 │   ├── simulation.py
 │   ├── trajectory.py
 │   ├── tuning.py
@@ -190,7 +191,7 @@ python experiments/run_mujoco_verification.py
 python -m pytest -q tests
 ```
 
-The current development version passes **70 automated tests**.
+The current development version passes **128 automated tests**.
 
 ## Technical Documentation
 
@@ -198,6 +199,8 @@ Further details are available in:
 
 - [`REPORT.md`](REPORT.md) — complete project report, methodology, experiments, and results.
 - [`docs/FEEDBACK_CONTROL_GUIDE.md`](docs/FEEDBACK_CONTROL_GUIDE.md) — feedback-control derivations and controller explanations.
+- [`docs/PLANNING_GUIDE.md`](docs/PLANNING_GUIDE.md) — practical guide to path planning and trajectory generation (usage, tuning, viva questions).
+- [`docs/PATH_PLANNING_AND_TRAJECTORY.md`](docs/PATH_PLANNING_AND_TRAJECTORY.md) — full reference: A\*, RRT\*, minimum snap/jerk, clearance and feasibility checks, results.
 - [`docs/quadcopter_gimballed_camera_mathematical_model.tex`](docs/quadcopter_gimballed_camera_mathematical_model.tex) — mathematical model of the quadcopter and gimballed camera.
 - [`docs/quadcopter_model.pdf`](docs/quadcopter_model.pdf) — compiled mathematical model.
 

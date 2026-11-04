@@ -106,6 +106,13 @@ def simulate_mission(
         ("acc_des", 3), ("eta_des", 3), ("u_virtual", 4), ("u_req", 4), ("rotor_speeds", 4),
         ("rotor_thrust_cmd", 4), ("rotor_thrust_act", 4), ("dist_force", 3), ("dist_torque", 3),
         ("wind", 3)]}
+    log["u_raw"] = np.zeros((N, 4))
+    log["a_cmd"] = np.full((N, 3), np.nan)
+    log["torque_sat"] = np.zeros((N, 3), dtype=bool)
+    log["int_pos"] = np.full((N, 3), np.nan)
+    log["int_att"] = np.full((N, 3), np.nan)
+    log["eta_dot_des"] = np.zeros((N, 3))
+    log["payload"] = np.zeros(N)
     log["alloc_sat"] = np.zeros(N, dtype=bool)
     log["tilt_sat"] = np.zeros(N, dtype=bool)
     log["S_p"] = np.full((N, 3), np.nan)
@@ -132,6 +139,14 @@ def simulate_mission(
         log["eta_des"][k] = diag.get("eta_d", [diag.get("phi_d", 0.0), diag.get("theta_d", 0.0), ref.yaw])
         log["u_virtual"][k] = u_virtual
         log["u_req"][k] = diag.get("u_req", u_virtual)
+        log["u_raw"][k] = diag.get("u_raw", log["u_req"][k])
+        log["torque_sat"][k] = diag.get("torque_sat", np.zeros(3, dtype=bool))
+        if "int_pos" in diag:
+            log["int_pos"][k], log["int_att"][k] = diag["int_pos"], diag["int_att"]
+        log["eta_dot_des"][k] = diag.get("eta_dot_d", np.zeros(3))
+        log["payload"][k] = delta_m
+        if "a_cmd" in diag:
+            log["a_cmd"][k] = diag["a_cmd"]
         log["rotor_thrust_cmd"][k] = diag["f"] if "f" in diag else p.k_thrust * np.linalg.solve(B, u_virtual)
         log["rotor_speeds"][k] = dynamics.rotor_speeds
         log["rotor_thrust_act"][k] = p.k_thrust * dynamics.rotor_speeds ** 2
@@ -168,6 +183,8 @@ def simulate_mission(
         **M.attitude_metrics(t_arr, out["eta"], out["eta_des"]),
         **M.effort_metrics(t_arr, out["u_virtual"], out["rotor_thrust_cmd"], p.mass, p.gravity,
                            getattr(alloc, "f_min", None), getattr(alloc, "f_max", None)),
+        **M.allocation_metrics(out["u_raw"], out["u_req"], out["u_virtual"], out["rotor_thrust_cmd"],
+                               out["torque_sat"], getattr(alloc, "f_min", 0.0), getattr(alloc, "f_max", np.inf)),
         "alloc_sat_fraction": float(np.mean(out["alloc_sat"])),
         "tilt_sat_fraction": float(np.mean(out["tilt_sat"])),
         "finite": finite,

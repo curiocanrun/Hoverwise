@@ -53,7 +53,7 @@ class RotorAllocator:
     """Converts a virtual wrench u into feasible rotor thrusts f."""
 
     def __init__(self, params, f_min: float = None, f_max: float = None,
-                 weights=(1.0, 10.0, 10.0, 0.3)):
+                 weights=(1.0, 10.0, 10.0, 0.3), method: str = "constrained"):
         """
         Args:
             params:  QuadcopterParams (geometry, k_t, k_d, rotor speed limits).
@@ -61,7 +61,12 @@ class RotorAllocator:
                 rotor speed limits of the model, f = k_t * Omega^2.
             weights: priority weights for [T, tau_x, tau_y, tau_z] residuals
                 (dimensionless, applied after converting moments to Newtons).
+            method: "constrained" (default, bounded weighted least squares) or
+                "clip" (f = clip(M^-1 u) - the naive method, kept for comparison).
         """
+        if method not in ("constrained", "clip"):
+            raise ValueError(method)
+        self.method = method
         self.params = params
         B = control_allocation_matrix(params.arm_length, params.k_thrust,
                                       params.k_drag, params.config)
@@ -111,6 +116,9 @@ class RotorAllocator:
         if np.all(f >= self.f_min - tol) and np.all(f <= self.f_max + tol):
             f = np.clip(f, self.f_min, self.f_max)
             return f, self.M @ f, False
+        if self.method == "clip":
+            f = np.clip(f, self.f_min, self.f_max)
+            return f, self.M @ f, True
 
         target = self.S @ u
         best_f, best_cost = None, np.inf

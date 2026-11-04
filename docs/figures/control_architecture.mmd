@@ -1,0 +1,38 @@
+flowchart LR
+    REF["<b>Reference</b><br/>trajectory / mission<br/>p<sub>d</sub>, v<sub>d</sub>, a<sub>d</sub>, j<sub>d</sub>, ψ<sub>d</sub>, ψ̇<sub>d</sub>"]
+    POS["<b>Position loop</b><br/>e<sub>p</sub> = p<sub>d</sub> − p, e<sub>v</sub> = v<sub>d</sub> − v<br/>PID: a<sub>c</sub> = a<sub>d</sub> + K<sub>p</sub>e<sub>p</sub> + K<sub>d</sub>e<sub>v</sub> + K<sub>i</sub>∫e<sub>p</sub><br/>SMC: a<sub>c</sub> = a<sub>d</sub> + Λe<sub>v</sub> + ks + K tanh(s/ε)"]
+    TV["<b>Thrust vector &amp; attitude reference</b><br/>f = a<sub>c</sub> + g e₃ + Dv/m → 30° tilt limit<br/>T = m f·z<sub>B</sub><br/>φ<sub>d</sub>, θ<sub>d</sub> exact (PDF 9.6) · η̇<sub>d</sub> feed-forward"]
+    ATT["<b>Attitude loop</b><br/>e<sub>η</sub> = η<sub>d</sub> − η, ė<sub>η</sub> = η̇<sub>d</sub> − W⁻¹ω<br/>PID or SMC → η̈<sub>c</sub>"]
+    WR["<b>Wrench calculation</b><br/>τ = I(Wη̈<sub>c</sub> + Ẇη̇) + ω×Iω + D<sub>ω</sub>ω<br/>torque clip → u = (T, τ)"]
+    AL["<b>Rotor allocation</b><br/>min ‖S(Mf − u)‖²<br/>0.3 N ≤ f<sub>i</sub> ≤ 12 N"]
+    PL["<b>Vehicle dynamics</b><br/>motor lag → M f<br/>m v̇ = RTe₃ − mge₃ + F<sub>D</sub> + F<sub>d</sub><br/>Iω̇ + ω×Iω = τ + τ<sub>d</sub>"]
+    SEN["<b>State / sensors</b><br/>x = (p, v, η, ω) + noise"]
+    DIST(["wind v<sub>w</sub>, F<sub>d</sub>, τ<sub>d</sub>, payload"])
+
+    REF --> POS --> TV
+    REF -. "j<sub>d</sub>, ψ<sub>d</sub>, ψ̇<sub>d</sub>" .-> TV
+    TV -- "η<sub>d</sub>, η̇<sub>d</sub>" --> ATT --> WR
+    TV -- "T" --> WR
+    WR -- "u = (T, τ)" --> AL -- "f₁…f₄" --> PL --> SEN
+    DIST --> PL
+    SEN -- "p, v" --> POS
+    SEN -- "R, v" --> TV
+    SEN -- "η, ω" --> ATT
+    SEN -- "η, ω" --> WR
+
+    subgraph OUTER ["outer loop  (ω<sub>n</sub> ≈ 3.2 rad/s)"]
+        POS
+        TV
+    end
+    subgraph INNER ["inner loop  (ω<sub>n</sub> ≈ 14 rad/s)"]
+        ATT
+        WR
+    end
+    classDef ctrl fill:#e8f0fb,stroke:#2a78d6,color:#0b0b0b
+    classDef act fill:#fdf0e9,stroke:#eb6834,color:#0b0b0b
+    classDef plant fill:#eef7f2,stroke:#1baf7a,color:#0b0b0b
+    class POS,TV,ATT,WR ctrl
+    class AL act
+    class PL,SEN plant
+    style OUTER fill:#f6f6f4,stroke:#9b9a95,color:#52514e
+    style INNER fill:#f6f6f4,stroke:#9b9a95,color:#52514e

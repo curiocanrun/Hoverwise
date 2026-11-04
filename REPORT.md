@@ -4,8 +4,8 @@
 **Course:** Advanced Robotics  
 **Group:** Group 1  
 **Team Members:**  
-- **Charitha Sri** (System Architecture, 3D Path Planning, & Trajectory Generation)
-- **Rishika** (Kinematic Modeling, Differential Flatness, & Computer Vision Anomaly Pipeline)
+- **Charitha Sri** (Kinematic Modeling, Differential Flatness, & Computer Vision Anomaly Pipeline)
+- **Rishika** (System Architecture, 3D Path Planning (A* and RRT*), & Smooth Trajectory Generation)
 - **Shreedhanvi** (Nonlinear Dynamic Simulation, RK4 Integrator, & MuJoCo Verification)
 - **Maanya Sri** (Feedback Flight Control Systems, Sliding Mode Controller, & Comparative Studies)
 
@@ -162,27 +162,18 @@ $$x = [p_x, p_y, p_z, v_x, v_y, v_z, \phi, \theta, \psi, p, q, r]^T \in \mathbb{
 ---
 
 ### 3.5 3D Path Planning Algorithms
-Two algorithms are formulated and compared:
-1. **3D A\* Search (Voxel Lattice):**
-   - 26-connected spatial neighborhood in $\mathbb{R}^3$ with voxel resolution $\Delta s = 0.6\text{ m}$.
-   - Priority queue minimizing $f(n) = g(n) + h(n)$, where $h(n) = \|n - n_{\text{goal}}\|_2$ is an admissible Euclidean heuristic.
-   - Post-processed using greedy ray-casting shortcutting to produce clean, direct 3D waypoints.
-2. **3D RRT\* (Rapidly-exploring Random Tree Star):**
-   - Asymptotically optimal sampling-based planner in continuous $\mathbb{R}^3$.
-   - Goal-biased uniform sampling ($P_{\text{goal}} = 0.15$), dynamic tree expansion with step size $\Delta q = 1.2\text{ m}$.
-   - Near-neighborhood search within ball radius $r = 2.5\text{ m}$ and branch rewiring for cost minimization.
+Full description, equations and results: **`docs/PATH_PLANNING_AND_TRAJECTORY.md`**. Summary:
+1. **3D A\* Search (voxel lattice):** 26-connected lattice (resolution 0.6 m in the experiment), edge cost = Euclidean length, admissible and consistent heuristic $h(n) = \|n - n_{\text{goal}}\|_2$; lattice-optimal (not optimal in continuous space). Nodes and edges are collision-checked against obstacles inflated by the safety margin (exact signed-distance functions, Lipschitz-bisection segment check). Greedy line-of-sight shortcutting. If no path exists it returns an explicit `no_path` status and an empty path (no direct start–goal fallback).
+2. **3D RRT\*:** goal-biased sampling ($P_{\text{goal}} = 0.15$), steering step $\eta = 1.2$ m, choose-parent, rewiring with cost propagation to the rewired subtree, neighbourhood radius $r_n = \min(\gamma(\ln n/n)^{1/3}, \eta)$ with $\gamma = 1.1\gamma^*$. Asymptotic optimality holds only as $n\to\infty$; with 800 iterations the radius stays at the 1.2 m cap, so results are feasible but not optimal. If the goal is not reached it returns a `partial` status (empty path, partial branch reported separately).
 
 ---
 
 ### 3.6 Trajectory Generation
-1. **Minimum Snap Trajectory (7th-Order Splines):**
-   Minimizes the integral of squared snap (4th derivative of position):
-   $$\min \int_0^T \left\| \frac{d^4 p(t)}{dt^4} \right\|^2 dt$$
-   Each segment $k \in [0, M-1]$ is parameterized by:
-   $$p_k(t) = \sum_{i=0}^7 c_{k,i} t^i$$
-   Enforcing $C^3$ continuity ($p, v, a, j$) across all waypoints and zero velocity/acceleration at start and goal forms a linear system $A c = b$, solved via `np.linalg.solve`.
-2. **Minimum Jerk Trajectory (5th-Order Quintic Splines):**
-   Minimizes $\int_0^T \|p^{(3)}(t)\|^2 dt$ with $C^2$ continuity.
+For fixed segment durations, per axis, the generators solve the exact minimiser of $\sum_k\int\|p^{(n)}\|^2dt$ through the waypoints with rest at both ends:
+1. **Minimum snap ($n = 4$):** degree-7 segments, $C^6$ continuity at interior waypoints, $v = a = j = 0$ at start and goal.
+2. **Minimum jerk ($n = 3$):** degree-5 segments, $C^4$ continuity at interior waypoints, $v = a = 0$ at start and goal.
+
+Square linear system ($2nM$ equations) in normalised segment time $\tau = t/T_k$ (≈100× better conditioned than raw time), with input validation and removal of repeated waypoints. Durations: $T_k = \max(d_k/v_{\text{avg}}, 1\,\text{s})$, scaled uniformly when the feasibility check fails. The planner-to-trajectory pipeline inserts waypoints until the sampled trajectory clearance meets the requirement, and checks tilt, thrust and acceleration limits. Yaw follows the velocity heading with a rate-limited, continuous blend near stops.
 
 ---
 
@@ -201,7 +192,9 @@ with $\ddot\eta_c = K_{p}e_\eta + K_{d}\dot e_\eta + K_{i}\int e_\eta$ (PID) or 
 
 **Allocation.** $f$ from $\min_f\|S(Mf-u)\|^2$ s.t. $f_{\min}\le f_i\le f_{\max}$, solved exactly over the $3^4$ active sets, priorities roll/pitch > thrust > yaw; $M$ is derived from the existing allocation matrix.
 
-**SMC robustness (with assumptions).** Per loop, $V=\tfrac12 s^2$ gives $\dot V \le -k s^2 - (0.76K - \bar D)|s| < 0$ outside the boundary layer if $K > \bar D/0.76$, assuming a bounded disturbance $|d|\le\bar D$, exact nominal inversion, no saturation and (for the outer loop) an inner loop that is fast enough. The residual error is $|e|\lesssim \bar D/(\Lambda(k+K/\epsilon))$ — not zero. This is not a stability proof of the full saturated cascade. *(The earlier version claimed guaranteed Lyapunov stability without these assumptions; that claim has been withdrawn.)*
+**Architecture** (block diagram: `docs/figures/control_architecture.png`): position loop → thrust vector & attitude reference → attitude loop → wrench calculation (computed torque) → constrained rotor allocation → vehicle dynamics. Large position errors are clamped so a far-away target is approached at ≤ 5 m/s (xy) / 2.5 m/s (z); the tilt is resolved with the *measured* yaw; desired attitude rates use the reference jerk and yaw rate (`reference` feed-forward mode — `none` and `full` compared in Exp 4).
+
+**SMC robustness (with assumptions).** Per loop, $V=\tfrac12 s^2$ gives $\dot V \le -k s^2 - (0.76K - \bar D)|s| < 0$ outside the boundary layer if $|d| \le \bar D < 0.76K$, assuming exact nominal inversion, no saturation and (for the outer loop) an inner loop fast enough to be treated as instantaneous. For a constant $d$ the residual is $|e| = s/\Lambda$ with $k s + K\tanh(s/\epsilon) = |d|$ — not zero. Each switching gain is an assumed disturbance bound (10 m/s wind / 1.5 N → 1.43 m/s² < $K_{p,xy}$ = 2; ≈25 % payload → 2.45 m/s² < $K_{p,z}$ = 2.5; 0.1 N m → 12.3 rad/s² < $K_\eta$ = 15). **Nothing is guaranteed when a disturbance exceeds its bound**; Exp 8 checks every scenario against the bounds. This is not a stability proof of the full saturated cascade; all assumptions are listed in the guide, Sec. 8. *(The earlier version claimed guaranteed Lyapunov stability without these assumptions; that claim has been withdrawn.)*
 
 **Tuned gains** (pole placement → stage-wise sweeps on a separate tuning mission with sensor noise; `results/tuning/`): PID $\omega_{n,pos}=3.2$ rad/s, $\zeta=0.9$, $\omega_{n,att}=14$ rad/s, $\zeta_{att}=0.7$; SMC $\Lambda_p=4$, $k_p=2$, $K_p=2$, $\epsilon_p=1$, $\Lambda_\eta=12$, $k_\eta=8$, $K_\eta=15$, $\epsilon_\eta=2$.
 
@@ -270,31 +263,35 @@ Takeoff, hover, straight leg, 90° turn in place, climbing leg, turn to an anoma
 
 **Interpretation.** Nominally the two controllers are equivalent (≈1.5 cm RMS). PID's integrator wins whenever the disturbance is constant (steady wind, payload, ground effect); SMC — which has no integrator — keeps a residual error that matches the boundary-layer prediction $e\approx d/(\Lambda(k+K/\epsilon))$ (8.9 cm predicted and measured for the 10 m/s wind). SMC wins on overshoot and on recovery after short disturbances (no integrator to unwind), but only while disturbances stay below its switching gain $K$ (cases 2C and 3B exceed it). SMC does not outperform PID overall in this study.
 
-### System-level experiment: 3D Obstacle Avoidance & Anomaly Geolocation (teammates' experiment, re-run with the new controller)
-This experiment evaluates planning and vision; it is not a controller benchmark.
+### System-level experiment: path planning → trajectory → flight → anomaly detection
+Script `experiments/run_experiment3_obstacle_avoidance.py`; full results and discussion in `docs/PATH_PLANNING_AND_TRAJECTORY.md` Sec. 9 and `results/metrics/exp3_obstacle_avoidance.md`. The flown trajectory is now built from the planner output (previously the planned paths were computed but a trajectory through hand-picked waypoints was flown; one of those waypoints was inside a tree canopy and that trajectory penetrated it by 8.5 cm).
 
-#### Path Planning Comparative Study (latest run; times vary per machine, RRT* is randomised):
-| Planning Metric | 3D A\* Search (Voxel Lattice) | 3D RRT\* Planner (Sampling) |
-|---|---|---|
-| **Planning Time (ms)** | 662.12 ms | 927.88 ms |
-| **Resulting Path Length (m)** | 22.50 m | 24.68 m |
-| **Waypoints Generated** | 4 (Shortcut) | 15 (Tree nodes) |
+| Start → goal planning | A\* | RRT\* (10 seeds) raw | RRT\* shortcut |
+|---|---:|---:|---:|
+| Path length (m) | 22.10 | 28.96 ± 2.39 | 23.24 ± 0.97 |
+| Planning time (ms, machine-dependent) | 413 | 153 ± 20 | — |
 
-#### Trajectory Generation Comparative Study:
-| Trajectory Metric | Minimum Snap (7th-Order Splines) | Minimum Jerk (5th-Order Quintic) |
-|---|---|---|
-| **Peak Acceleration** | 3.64 m/s² | **2.98 m/s²** |
-| **Peak Jerk** | **5.76 m/s³** (Smooth motor demand) | 9.57 m/s³ |
+| Survey route, min-snap trajectory | A\* route | RRT\* route |
+|---|---:|---:|
+| Clearance before → after refinement (m) | 0.359 → 0.625 | 0.249 → 0.644 |
+| Max required tilt (deg), after ×1.1 time scaling | 29.3 | 29.3 |
+| Flown: RMSE PID / SMC (m) | 0.0044 / 0.0042 | 0.0041 / 0.0039 |
+| Flown minimum clearance (m), robot radius 0.325 m | 0.627 | 0.645 |
 
-#### Onboard Anomaly Detection & Geolocation Accuracy (72 detection events):
-| Target ID | Anomaly Category | Ground Truth $(X, Y, Z)$ [m] | Geolocation Error |
-|---|---|---|---|
-| **1** | Unauthorised Vehicle | $(6.0, 5.0, 0.0)$ | 0.042 m |
-| **2** | Illegal Logging (Timber) | $(11.5, 4.5, 0.0)$ | 0.011 m |
-| **3** | Unusual Encroachment | $(14.5, 8.5, 0.0)$ | 0.021 m |
-| **4** | Wildlife / Poacher | $(18.5, 6.0, 0.0)$ | 0.018 m |
+Anomaly detection along the A\* / Sliding Mode flight: 119 detections, all 4 targets; best geolocation errors 0.016, 0.012, 0.061, 0.019 m (pixel noise seeded).
 
 ---
+
+### Experiments 4–8: feed-forward, saturation, anti-windup, challenging references, PID vs SMC by class
+Full analysis: `docs/FEEDBACK_CONTROL_GUIDE.md` Sec. 5, 7.4, 9, 10, 15, 16; tables `results/metrics/exp4…exp8*.md`.
+
+| Exp | Finding (PID / SMC where both apply) |
+|---|---|
+| 4 feed-forward modes | `none` (η̇_d = 0): 1.2–2× position error, 2–22× attitude error. `full` best on the 1.5× faster mission (RMSE 0.050 / 0.057 m vs 0.055 / 0.079 m with `reference`) but 9–22 % more rotor-thrust variation and worse with wind + payload (SMC 0.146 vs 0.136 m); `reference` kept as default |
+| 5 allocation & saturation | rotors saturate only at f_min (1–5 % of the time, only in violent manoeuvres; f_max never reached, 0 % in nominal/disturbance flight). Constrained allocation keeps roll/pitch moments (max τ_x error from allocation 0.001 vs 0.47 N m with clipping), sacrifices yaw, and lowers RMSE by 7–8 % in the large-initial-error case |
+| 6 anti-windup | 25 m step: overshoot 0.47 m with anti-windup vs 64 m (divergent) without; 3 s thrust saturation: recovered in 3.4 s vs crash; yaw-torque saturation: 3.8° vs 45° swing; integral terms stay within their clamps |
+| 7 challenging references | 5 m/s² circle: 4–5 mm RMSE; infeasible 9 m/s² circle, steps and a 20 m/s² climb: no instability, tilt command ≤ 30°, convergence once feasible; 2 rad/s yaw spin: 1–2° RMS; 6 rad/s spin not followed (3 rad/s feed-forward bound); 170° yaw step in cruise: 5 mm cross-track (0.44 / 1.88 m if the tilt were resolved with ψ_d) |
+| 8 PID vs SMC by class | nominal: equal; sustained: PID (residual 4–8 mm vs 4–23 cm); transient: PID smaller peaks, SMC faster recovery after strong hits (0.58 vs 2.78 s); payload added: PID (2 vs 16–21 cm), payload released: SMC (0.35 vs 1.7 s). SMC residuals match the boundary-layer prediction to ≤ 3 mm; bounds exceeded in S4, T3, P1, P2 |
 
 ### MuJoCo Physics Engine Verification
 - **Status: not executed in MuJoCo in the environment where these results were generated** (MuJoCo could not be installed there). Run `pip install mujoco && python experiments/run_mujoco_verification.py`; results go to `results/mujoco/`.
@@ -317,9 +314,9 @@ This experiment evaluates planning and vision; it is not a controller benchmark.
 This project demonstrated a complete, self-contained robotic architecture for a 6-DOF Surveillance Quadcopter. Every core learning objective was implemented from first principles using pure NumPy:
 - Verified forward kinematics, analytical Jacobians, and singularity conditions.
 - Successfully implemented differential flatness-based inverse kinematics.
-- Compared 3D A* vs 3D RRT* and Minimum Snap vs Minimum Jerk trajectories.
+- Compared 3D A* vs 3D RRT* and Minimum Snap vs Minimum Jerk trajectories, and flew planner-derived, clearance-checked trajectories through the obstacle field.
 - Implemented, systematically tuned and quantitatively compared Cascaded PID and Sliding Mode Controllers (computed-torque inner loops, constrained rotor allocation) under nominal conditions, four disturbance types and three challenging conditions.
-- Achieved sub-3cm anomaly geolocation accuracy using inverse ray-ground projection.
+- Achieved anomaly geolocation errors of 1–6 cm using inverse ray-ground projection.
 - Prepared and checked the MuJoCo bridge (conventions verified by tests; the MuJoCo run itself is pending on a machine with MuJoCo).
 
 ---
@@ -328,8 +325,8 @@ This project demonstrated a complete, self-contained robotic architecture for a 
 
 | Team Member | Specific Technical Contributions |
 |---|---|
-| **Charitha Sri** | • Formulated and coded the 3D A\* voxel lattice search with line-of-sight shortcutting.<br>• Designed the 3D RRT\* asymptotically optimal planner with branch rewiring.<br>• Formulated the 7th-order Minimum Snap Spline boundary value problem using NumPy linear algebra.<br>• Authored trajectory generation benchmarking scripts. |
-| **Rishika** | • Implemented forward kinematics, homogeneous transforms $T_B^I$, and rotor arm geometry.<br>• Derived analytical attitude Jacobian $W_\eta$, inverse $W_\eta^{-1}$, and Yoshikawa manipulability.<br>• Developed the differential flatness-based inverse kinematics solver.<br>• Engineered the onboard surveillance camera perspective projection and inverse ray-ground geolocation engine. |
+| **Rishika** | • Formulated and coded the 3D A\* voxel lattice search with line-of-sight shortcutting.<br>• Designed the 3D RRT\* planner with branch rewiring.<br>• Formulated the 7th-order Minimum Snap Spline boundary value problem using NumPy linear algebra.<br>• Authored trajectory generation benchmarking scripts. |
+| **Charitha Sri** | • Implemented forward kinematics, homogeneous transforms $T_B^I$, and rotor arm geometry.<br>• Derived analytical attitude Jacobian $W_\eta$, inverse $W_\eta^{-1}$, and Yoshikawa manipulability.<br>• Developed the differential flatness-based inverse kinematics solver.<br>• Engineered the onboard surveillance camera perspective projection and inverse ray-ground geolocation engine. |
 | **Shreedhanvi** | • Formulated the 12-state nonlinear rigid-body dynamics with gyroscopic and aerodynamic drag.<br>• Implemented the 4th-order Runge-Kutta (RK4) numerical integrator from scratch in pure NumPy.<br>• Authored the MuJoCo MJCF XML airframe model (`quadcopter.xml`) with actuators and collision geometry.<br>• Developed the MuJoCo simulation bridge and cross-engine verification scripts. |
 | **Maanya Sri** | • Feedback control (Part 3): cascaded PID and sliding mode controllers with exact desired attitude and attitude-rate generation, computed-torque inner loops, anti-windup and saturation handling (`controllers.py`).<br>• Constrained, priority-weighted rotor allocation (`allocation.py`).<br>• Systematic gain tuning (`tuning.py`, `run_tuning.py`), experiments 1–3, metrics (`metrics.py`), disturbance models (`disturbances.py`), mission builder (`missions.py`), tests (`tests/`).<br>• Audit and minimal fixes of the interfaces (see Sec. 8) and the MuJoCo bridge. |
 
@@ -352,11 +349,13 @@ Detailed explanation for the presentation/viva: **`docs/FEEDBACK_CONTROL_GUIDE.m
 | 8 | `trajectory.py` returned `yaw_rate = 0.0` (placeholder) | analytic yaw rate |
 | 9 | `simulation.py` time grid spacing ≠ dt; no reset of actuator state; no $F_d$ input | exact grid, resets, `disturbance_force`, seeded sensor noise, richer logs |
 | 10 | MuJoCo bridge: unconstrained allocation + silent 12 N clip, mujoco import at module level | shared constrained allocator, MJCF-vs-model allocation check, matched-physics option, lazy import |
+| 11 | (found by Exp 6) a large reference step drove the saturated PD/SMC to ≈12 m/s and an 8.3 m overshoot | position-error clamp bounding the approach speed (5 m/s xy, 2.5 m/s z); inactive for errors < ~1–2 m, so tuning and nominal results unchanged |
+| 12 | no logging of requested vs achieved wrench, no way to compare allocators or disable anti-windup | `u_raw`/`u_req`/`u` logged, allocation metrics, `RotorAllocator(method="clip")`, `CascadedPIDGains(anti_windup=False)` for the studies only |
 
 Teammates' modules were otherwise left unchanged (kinematics, path planning, vision, visualization, MJCF). Original repository backed up before changes.
 
 ### 8.2 Tests
-`python -m pytest -q tests` → 33 passed, 1 skipped (the real-MuJoCo test, skipped when MuJoCo is not installed). Covered: hover, vertical, horizontal, 3-D circle, recovery from position and attitude disturbances, allocator bounds/priority, in-flight saturation and tilt limit, anti-windup, yaw wrapping across ±180°, reset reproducibility, finite outputs for 500 random states, no sustained oscillation, roll/pitch sign conventions, PDF allocation/Jacobian/tilt consistency, MuJoCo bridge conventions and MJCF actuator layout, tuned-gain consistency.
+`python -m pytest -q tests` → 54 passed, 1 skipped (the real-MuJoCo test, skipped when MuJoCo is not installed). `tests/test_stress.py` (21 tests) adds: prolonged tilt / thrust / yaw-torque saturation with recovery and bounded integrals (and confirms windup without anti-windup), wrench-chain consistency u = M f, constrained vs clipping allocation, high-acceleration and infeasible circles, infeasible steps and climbs, continuous yaw spin, yaw step during cruise (tilt resolution), all three feed-forward modes, and the SMC boundary-layer residual prediction. Also covered: hover, vertical, horizontal, 3-D circle, recovery from position and attitude disturbances, allocator bounds/priority, in-flight saturation and tilt limit, anti-windup, yaw wrapping across ±180°, reset reproducibility, finite outputs for 500 random states, no sustained oscillation, roll/pitch sign conventions, PDF allocation/Jacobian/tilt consistency, MuJoCo bridge conventions and MJCF actuator layout, tuned-gain consistency.
 
 ---
 *Report submitted on October 31, 2026 by Group 1; feedback-control sections updated November 1, 2026.*

@@ -1,28 +1,28 @@
 {
   "finite": true,
   "flight_time_s": 33.335,
-  "max_altitude_m": 2.5006953220502415,
-  "position_rmse_m": 0.0020111244910998305,
-  "position_max_error_m": 0.008191756014972018,
-  "hover_position_rmse_m": 0.00212106926151276,
-  "max_roll_pitch_deg": 15.451509438518508,
-  "touchdown_height_m": 0.2000743369949377,
-  "final_height_m": 0.19790179455054577,
-  "final_xy_error_m": 7.426469799817973e-06,
-  "touchdown_vertical_speed_mps": -0.0015055727452655294,
+  "max_altitude_m": 2.500695322050241,
+  "position_rmse_m": 0.0020111244911000365,
+  "position_max_error_m": 0.008191756014971352,
+  "hover_position_rmse_m": 0.0021210692615127123,
+  "max_roll_pitch_deg": 15.451509438517228,
+  "touchdown_height_m": 0.20007433699493882,
+  "final_height_m": 0.1979017945505461,
+  "final_xy_error_m": 7.4264698217659495e-06,
+  "touchdown_vertical_speed_mps": -0.0015055727452961774,
   "thrust_min_N": 0.298,
-  "thrust_max_N": 3.3544324800529024,
+  "thrust_max_N": 3.3544324800528886,
   "prop_mean_speed_rad_s": [
-    35.41415107084159,
-    -35.26962072731968,
-    35.23267989597111,
-    -35.37532703150002
+    35.41415107084157,
+    -35.26962072731967,
+    35.232679895971096,
+    -35.37532703150006
   ],
   "prop_mean_speed_rpm": [
-    338.18023189965464,
-    336.8000687837578,
-    336.4473098290948,
-    337.8094896333344
+    338.1802318996544,
+    336.8000687837577,
+    336.4473098290947,
+    337.80948963333475
   ],
   "prop_directions": [
     "CCW",
@@ -30,17 +30,17 @@
     "CCW",
     "CW"
   ],
-  "physical_rotor_speed_hover_rad_s": 294.94675174481233,
+  "physical_rotor_speed_hover_rad_s": 294.9467517448122,
   "gimbal_pan_range_deg": [
     -89.98629346105008,
     89.98686164246
   ],
   "gimbal_tilt_range_deg": [
     -89.71113931257973,
-    0.05370026299650452
+    0.05370026299650366
   ],
   "gimbal_servo_error_p95_deg": 2.0010167730293054,
-  "anomaly_los_error_mean_deg": 0.5333731918713331,
-  "anomaly_los_error_max_deg": 2.5181704290312243,
+  "anomaly_los_error_mean_deg": 0.5333731918718478,
+  "anomaly_los_error_max_deg": 2.5181704290331064,
   "controller": "Cascaded PID"
 }

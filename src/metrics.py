@@ -122,3 +122,26 @@ def recovery_metrics(t, e_norm, t_on: float, t_off: float, tol: float):
         pre_disturbance_error=float(np.mean(pre)) if len(pre) else float("nan"),
         recovery_time=rec,
     )
+
+
+def allocation_metrics(u_raw, u_req, u_ach, f, torque_sat, f_min, f_max):
+    """Requested vs achieved wrench and actuator-limit statistics.
+    u_raw : wrench the feedback law asked for (before any clip)
+    u_req : after the thrust-range and per-axis torque clips (input to the allocator)
+    u_ach : M f actually produced by the four rotor thrusts f
+    Wrench errors are reported per channel [T (N), tau_x, tau_y, tau_z (N m)]."""
+    u_raw, u_req, u_ach, f = map(np.asarray, (u_raw, u_req, u_ach, f))
+    e_total = u_ach - u_raw
+    e_alloc = u_ach - u_req
+    at_max = f >= f_max - 1e-6
+    at_min = f <= f_min + 1e-6
+    out = {}
+    for i, ch in enumerate(["T", "tau_x", "tau_y", "tau_z"]):
+        out[f"wrench_rms_err_{ch}"] = float(np.sqrt(np.mean(e_total[:, i] ** 2)))
+        out[f"wrench_max_err_{ch}"] = float(np.max(np.abs(e_total[:, i])))
+        out[f"alloc_max_err_{ch}"] = float(np.max(np.abs(e_alloc[:, i])))
+    out["torque_clip_fraction"] = float(np.mean(np.any(torque_sat, axis=1)))
+    out["rotor_at_max_fraction"] = float(np.mean(np.any(at_max, axis=1)))
+    out["rotor_at_min_fraction"] = float(np.mean(np.any(at_min, axis=1)))
+    out["rotor_limit_fraction_each"] = [float(v) for v in np.mean(at_max | at_min, axis=0)]
+    return out
