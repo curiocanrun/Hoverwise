@@ -4,8 +4,8 @@
 **Course:** Advanced Robotics  
 **Group:** Group 1  
 **Team Members:**  
-- **Charitha Sri** (System Architecture, 3D Path Planning, & Trajectory Generation)
-- **Rishika** (Kinematic Modeling, Differential Flatness, & Computer Vision Anomaly Pipeline)
+- **Rishika** (System Architecture, 3D Path Planning, & Trajectory Generation)
+- **Charitha Sri** (Kinematic Modeling, Differential Flatness, & Computer Vision Anomaly Pipeline)
 - **Shreedhanvi** (Nonlinear Dynamic Simulation, RK4 Integrator, & MuJoCo Verification)
 - **Maanya Sri** (Feedback Flight Control Systems, Sliding Mode Controller, & Comparative Studies)
 
@@ -162,27 +162,18 @@ $$x = [p_x, p_y, p_z, v_x, v_y, v_z, \phi, \theta, \psi, p, q, r]^T \in \mathbb{
 ---
 
 ### 3.5 3D Path Planning Algorithms
-Two algorithms are formulated and compared:
-1. **3D A\* Search (Voxel Lattice):**
-   - 26-connected spatial neighborhood in $\mathbb{R}^3$ with voxel resolution $\Delta s = 0.6\text{ m}$.
-   - Priority queue minimizing $f(n) = g(n) + h(n)$, where $h(n) = \|n - n_{\text{goal}}\|_2$ is an admissible Euclidean heuristic.
-   - Post-processed using greedy ray-casting shortcutting to produce clean, direct 3D waypoints.
-2. **3D RRT\* (Rapidly-exploring Random Tree Star):**
-   - Asymptotically optimal sampling-based planner in continuous $\mathbb{R}^3$.
-   - Goal-biased uniform sampling ($P_{\text{goal}} = 0.15$), dynamic tree expansion with step size $\Delta q = 1.2\text{ m}$.
-   - Near-neighborhood search within ball radius $r = 2.5\text{ m}$ and branch rewiring for cost minimization.
+Full description, equations and results: **`docs/PATH_PLANNING_AND_TRAJECTORY.md`**. Summary:
+1. **3D A\* Search (voxel lattice):** 26-connected lattice (resolution 0.6 m in the experiment), edge cost = Euclidean length, admissible and consistent heuristic $h(n) = \|n - n_{\text{goal}}\|_2$; lattice-optimal (not optimal in continuous space). Nodes and edges are collision-checked against obstacles inflated by the safety margin (exact signed-distance functions, Lipschitz-bisection segment check). Greedy line-of-sight shortcutting. If no path exists it returns an explicit `no_path` status and an empty path (no direct start–goal fallback).
+2. **3D RRT\*:** goal-biased sampling ($P_{\text{goal}} = 0.15$), steering step $\eta = 1.2$ m, choose-parent, rewiring with cost propagation to the rewired subtree, neighbourhood radius $r_n = \min(\gamma(\ln n/n)^{1/3}, \eta)$ with $\gamma = 1.1\gamma^*$. Asymptotic optimality holds only as $n\to\infty$; with 800 iterations the radius stays at the 1.2 m cap, so results are feasible but not optimal. If the goal is not reached it returns a `partial` status (empty path, partial branch reported separately).
 
 ---
 
 ### 3.6 Trajectory Generation
-1. **Minimum Snap Trajectory (7th-Order Splines):**
-   Minimizes the integral of squared snap (4th derivative of position):
-   $$\min \int_0^T \left\| \frac{d^4 p(t)}{dt^4} \right\|^2 dt$$
-   Each segment $k \in [0, M-1]$ is parameterized by:
-   $$p_k(t) = \sum_{i=0}^7 c_{k,i} t^i$$
-   Enforcing $C^3$ continuity ($p, v, a, j$) across all waypoints and zero velocity/acceleration at start and goal forms a linear system $A c = b$, solved via `np.linalg.solve`.
-2. **Minimum Jerk Trajectory (5th-Order Quintic Splines):**
-   Minimizes $\int_0^T \|p^{(3)}(t)\|^2 dt$ with $C^2$ continuity.
+For fixed segment durations, per axis, the generators solve the exact minimiser of $\sum_k\int\|p^{(n)}\|^2dt$ through the waypoints with rest at both ends:
+1. **Minimum snap ($n = 4$):** degree-7 segments, $C^6$ continuity at interior waypoints, $v = a = j = 0$ at start and goal.
+2. **Minimum jerk ($n = 3$):** degree-5 segments, $C^4$ continuity at interior waypoints, $v = a = 0$ at start and goal.
+
+Square linear system ($2nM$ equations) in normalised segment time $\tau = t/T_k$ (≈100× better conditioned than raw time), with input validation and removal of repeated waypoints. Durations: $T_k = \max(d_k/v_{\text{avg}}, 1\,\text{s})$, scaled uniformly when the feasibility check fails. The planner-to-trajectory pipeline inserts waypoints until the sampled trajectory clearance meets the requirement, and checks tilt, thrust and acceleration limits. Yaw follows the velocity heading with a rate-limited, continuous blend near stops.
 
 ---
 
@@ -272,29 +263,22 @@ Takeoff, hover, straight leg, 90° turn in place, climbing leg, turn to an anoma
 
 **Interpretation.** Nominally the two controllers are equivalent (≈1.5 cm RMS). PID's integrator wins whenever the disturbance is constant (steady wind, payload, ground effect); SMC — which has no integrator — keeps a residual error that matches the boundary-layer prediction $e\approx d/(\Lambda(k+K/\epsilon))$ (8.9 cm predicted and measured for the 10 m/s wind). SMC wins on overshoot and on recovery after short disturbances (no integrator to unwind), but only while disturbances stay below its switching gain $K$ (cases 2C and 3B exceed it). SMC does not outperform PID overall in this study.
 
-### System-level experiment: 3D Obstacle Avoidance & Anomaly Geolocation (teammates' experiment, re-run with the new controller)
-This experiment evaluates planning and vision; it is not a controller benchmark.
+### System-level experiment: path planning → trajectory → flight → anomaly detection
+Script `experiments/run_experiment3_obstacle_avoidance.py`; full results and discussion in `docs/PATH_PLANNING_AND_TRAJECTORY.md` Sec. 9 and `results/metrics/exp3_obstacle_avoidance.md`. The flown trajectory is now built from the planner output (previously the planned paths were computed but a trajectory through hand-picked waypoints was flown; one of those waypoints was inside a tree canopy and that trajectory penetrated it by 8.5 cm).
 
-#### Path Planning Comparative Study (latest run; times vary per machine, RRT* is randomised):
-| Planning Metric | 3D A\* Search (Voxel Lattice) | 3D RRT\* Planner (Sampling) |
-|---|---|---|
-| **Planning Time (ms)** | 662.12 ms | 927.88 ms |
-| **Resulting Path Length (m)** | 22.50 m | 24.68 m |
-| **Waypoints Generated** | 4 (Shortcut) | 15 (Tree nodes) |
+| Start → goal planning | A\* | RRT\* (10 seeds) raw | RRT\* shortcut |
+|---|---:|---:|---:|
+| Path length (m) | 22.10 | 28.96 ± 2.39 | 23.24 ± 0.97 |
+| Planning time (ms, machine-dependent) | 413 | 153 ± 20 | — |
 
-#### Trajectory Generation Comparative Study:
-| Trajectory Metric | Minimum Snap (7th-Order Splines) | Minimum Jerk (5th-Order Quintic) |
-|---|---|---|
-| **Peak Acceleration** | 3.64 m/s² | **2.98 m/s²** |
-| **Peak Jerk** | **5.76 m/s³** (Smooth motor demand) | 9.57 m/s³ |
+| Survey route, min-snap trajectory | A\* route | RRT\* route |
+|---|---:|---:|
+| Clearance before → after refinement (m) | 0.359 → 0.625 | 0.249 → 0.644 |
+| Max required tilt (deg), after ×1.1 time scaling | 29.3 | 29.3 |
+| Flown: RMSE PID / SMC (m) | 0.0044 / 0.0042 | 0.0041 / 0.0039 |
+| Flown minimum clearance (m), robot radius 0.325 m | 0.627 | 0.645 |
 
-#### Onboard Anomaly Detection & Geolocation Accuracy (72 detection events):
-| Target ID | Anomaly Category | Ground Truth $(X, Y, Z)$ [m] | Geolocation Error |
-|---|---|---|---|
-| **1** | Unauthorised Vehicle | $(6.0, 5.0, 0.0)$ | 0.042 m |
-| **2** | Illegal Logging (Timber) | $(11.5, 4.5, 0.0)$ | 0.011 m |
-| **3** | Unusual Encroachment | $(14.5, 8.5, 0.0)$ | 0.021 m |
-| **4** | Wildlife / Poacher | $(18.5, 6.0, 0.0)$ | 0.018 m |
+Anomaly detection along the A\* / Sliding Mode flight: 119 detections, all 4 targets; best geolocation errors 0.016, 0.012, 0.061, 0.019 m (pixel noise seeded).
 
 ---
 
@@ -330,9 +314,9 @@ Full analysis: `docs/FEEDBACK_CONTROL_GUIDE.md` Sec. 5, 7.4, 9, 10, 15, 16; tabl
 This project demonstrated a complete, self-contained robotic architecture for a 6-DOF Surveillance Quadcopter. Every core learning objective was implemented from first principles using pure NumPy:
 - Verified forward kinematics, analytical Jacobians, and singularity conditions.
 - Successfully implemented differential flatness-based inverse kinematics.
-- Compared 3D A* vs 3D RRT* and Minimum Snap vs Minimum Jerk trajectories.
+- Compared 3D A* vs 3D RRT* and Minimum Snap vs Minimum Jerk trajectories, and flew planner-derived, clearance-checked trajectories through the obstacle field.
 - Implemented, systematically tuned and quantitatively compared Cascaded PID and Sliding Mode Controllers (computed-torque inner loops, constrained rotor allocation) under nominal conditions, four disturbance types and three challenging conditions.
-- Achieved sub-3cm anomaly geolocation accuracy using inverse ray-ground projection.
+- Achieved anomaly geolocation errors of 1–6 cm using inverse ray-ground projection.
 - Prepared and checked the MuJoCo bridge (conventions verified by tests; the MuJoCo run itself is pending on a machine with MuJoCo).
 
 ---
@@ -341,8 +325,8 @@ This project demonstrated a complete, self-contained robotic architecture for a 
 
 | Team Member | Specific Technical Contributions |
 |---|---|
-| **Charitha Sri** | • Formulated and coded the 3D A\* voxel lattice search with line-of-sight shortcutting.<br>• Designed the 3D RRT\* asymptotically optimal planner with branch rewiring.<br>• Formulated the 7th-order Minimum Snap Spline boundary value problem using NumPy linear algebra.<br>• Authored trajectory generation benchmarking scripts. |
-| **Rishika** | • Implemented forward kinematics, homogeneous transforms $T_B^I$, and rotor arm geometry.<br>• Derived analytical attitude Jacobian $W_\eta$, inverse $W_\eta^{-1}$, and Yoshikawa manipulability.<br>• Developed the differential flatness-based inverse kinematics solver.<br>• Engineered the onboard surveillance camera perspective projection and inverse ray-ground geolocation engine. |
+| **Rishika** | • Formulated and coded the 3D A\* voxel lattice search with line-of-sight shortcutting.<br>• Designed the 3D RRT\* planner with branch rewiring.<br>• Formulated the 7th-order Minimum Snap Spline boundary value problem using NumPy linear algebra.<br>• Authored trajectory generation benchmarking scripts. |
+| **Charitha Sri** | • Implemented forward kinematics, homogeneous transforms $T_B^I$, and rotor arm geometry.<br>• Derived analytical attitude Jacobian $W_\eta$, inverse $W_\eta^{-1}$, and Yoshikawa manipulability.<br>• Developed the differential flatness-based inverse kinematics solver.<br>• Engineered the onboard surveillance camera perspective projection and inverse ray-ground geolocation engine. |
 | **Shreedhanvi** | • Formulated the 12-state nonlinear rigid-body dynamics with gyroscopic and aerodynamic drag.<br>• Implemented the 4th-order Runge-Kutta (RK4) numerical integrator from scratch in pure NumPy.<br>• Authored the MuJoCo MJCF XML airframe model (`quadcopter.xml`) with actuators and collision geometry.<br>• Developed the MuJoCo simulation bridge and cross-engine verification scripts. |
 | **Maanya Sri** | • Feedback control (Part 3): cascaded PID and sliding mode controllers with exact desired attitude and attitude-rate generation, computed-torque inner loops, anti-windup and saturation handling (`controllers.py`).<br>• Constrained, priority-weighted rotor allocation (`allocation.py`).<br>• Systematic gain tuning (`tuning.py`, `run_tuning.py`), experiments 1–3, metrics (`metrics.py`), disturbance models (`disturbances.py`), mission builder (`missions.py`), tests (`tests/`).<br>• Audit and minimal fixes of the interfaces (see Sec. 8) and the MuJoCo bridge. |
 

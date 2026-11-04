@@ -1,0 +1,518 @@
+{
+  "settings": {
+    "planner_margin_m": 0.6,
+    "robot_radius_m": 0.325,
+    "required_reference_clearance_m": 0.45,
+    "viewpoint_margin_m": 0.8,
+    "cruise_speed_mps": 2.0,
+    "astar_resolution_m": 0.6,
+    "rrt_iterations": 800,
+    "rrt_seeds": 10
+  },
+  "A_audit_previous_version": {
+    "waypoint_clearance_m": [
+      3.1169905660283015,
+      -0.018861169915810327,
+      3.152893855326458,
+      0.8,
+      2.8,
+      3.9276925690687086
+    ],
+    "trajectory_min_clearance_m": -0.08477307355746944,
+    "trajectory_time_inside_obstacle_s": 0.25,
+    "trajectory_time_within_robot_radius_s": 0.87,
+    "t_min_clearance_s": 2.13,
+    "pos_min_clearance": [
+      4.936684313142739,
+      3.686509860237074,
+      3.497629261983375
+    ]
+  },
+  "B_planners_start_goal": {
+    "astar": {
+      "algorithm": "3D A*",
+      "status": "success",
+      "success": true,
+      "reason": "",
+      "planning_time_ms": 481.9752119999521,
+      "path_length_m": 22.099718166317913,
+      "raw_path_length_m": 23.10774102542512,
+      "raw_waypoints": 33,
+      "smoothed_waypoints": 4,
+      "nodes_explored": 1219,
+      "safety_margin_m": 0.6,
+      "min_clearance_m": 0.657458425167647
+    },
+    "rrt_star": {
+      "seeds": 10,
+      "successes": 10,
+      "time_ms_mean": 168.72753910001848,
+      "time_ms_std": 29.545678487176055,
+      "raw_length_mean": 28.95694929797212,
+      "raw_length_std": 2.3863404100211145,
+      "raw_length_min": 25.632598053772337,
+      "raw_length_max": 33.85855253649477,
+      "shortcut_length_mean": 23.24106536359916,
+      "shortcut_length_std": 0.9715385974625793,
+      "raw_waypoints_mean": 26.4,
+      "tree_nodes_mean": 629.9,
+      "rewires_mean": 64.6,
+      "min_clearance_m": 0.6113240899337746,
+      "near_radius_first_last": [
+        1.2,
+        1.2
+      ]
+    },
+    "rrt_star_runs": [
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 163.20111499999257,
+        "path_length_m": 28.772902118565842,
+        "raw_path_length_m": 28.772902118565842,
+        "waypoints": 27,
+        "raw_waypoints": 27,
+        "tree_nodes": 615,
+        "iterations": 800,
+        "rewires": 54,
+        "goal_candidates": 8,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.716889519829021,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 23.329924850945872,
+        "shortcut_min_clearance_m": 0.6168494078512883
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 226.54713499991885,
+        "path_length_m": 29.953711110162274,
+        "raw_path_length_m": 29.953711110162274,
+        "waypoints": 28,
+        "raw_waypoints": 28,
+        "tree_nodes": 633,
+        "iterations": 800,
+        "rewires": 62,
+        "goal_candidates": 7,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.9297906867722017,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 23.785354832414455,
+        "shortcut_min_clearance_m": 0.8289571909131075
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 215.8019810001406,
+        "path_length_m": 31.41309929535962,
+        "raw_path_length_m": 31.41309929535962,
+        "waypoints": 29,
+        "raw_waypoints": 29,
+        "tree_nodes": 636,
+        "iterations": 800,
+        "rewires": 66,
+        "goal_candidates": 5,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.8613192352159218,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 24.29481097725582,
+        "shortcut_min_clearance_m": 0.6113240899337746
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 149.40630499995677,
+        "path_length_m": 33.85855253649477,
+        "raw_path_length_m": 33.85855253649477,
+        "waypoints": 30,
+        "raw_waypoints": 30,
+        "tree_nodes": 603,
+        "iterations": 800,
+        "rewires": 44,
+        "goal_candidates": 5,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.6405650958073028,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 24.993954959926363,
+        "shortcut_min_clearance_m": 0.6597840865805153
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 173.66248799999084,
+        "path_length_m": 26.945786039540724,
+        "raw_path_length_m": 26.945786039540724,
+        "waypoints": 25,
+        "raw_waypoints": 25,
+        "tree_nodes": 647,
+        "iterations": 800,
+        "rewires": 61,
+        "goal_candidates": 4,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.6271998809044762,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 21.969170637749816,
+        "shortcut_min_clearance_m": 0.7267750932205934
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 150.82948100007343,
+        "path_length_m": 26.14097878828422,
+        "raw_path_length_m": 26.14097878828422,
+        "waypoints": 23,
+        "raw_waypoints": 23,
+        "tree_nodes": 640,
+        "iterations": 800,
+        "rewires": 88,
+        "goal_candidates": 3,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.8020944174843398,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 23.415932320477456,
+        "shortcut_min_clearance_m": 0.805226968954329
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 131.16088700007822,
+        "path_length_m": 28.99213908437048,
+        "raw_path_length_m": 28.99213908437048,
+        "waypoints": 26,
+        "raw_waypoints": 26,
+        "tree_nodes": 637,
+        "iterations": 800,
+        "rewires": 85,
+        "goal_candidates": 2,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.70518025513717,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 22.4889312741399,
+        "shortcut_min_clearance_m": 0.7707757322298598
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 139.78223799995249,
+        "path_length_m": 25.632598053772337,
+        "raw_path_length_m": 25.632598053772337,
+        "waypoints": 23,
+        "raw_waypoints": 23,
+        "tree_nodes": 653,
+        "iterations": 800,
+        "rewires": 69,
+        "goal_candidates": 4,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.6447236540400216,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 21.965279469462686,
+        "shortcut_min_clearance_m": 0.6389999064717578
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 159.1529150000497,
+        "path_length_m": 30.119805520567898,
+        "raw_path_length_m": 30.119805520567898,
+        "waypoints": 27,
+        "raw_waypoints": 27,
+        "tree_nodes": 613,
+        "iterations": 800,
+        "rewires": 73,
+        "goal_candidates": 6,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.7501996197166891,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 23.811841055408998,
+        "shortcut_min_clearance_m": 0.7333833252988522
+      },
+      {
+        "algorithm": "3D RRT*",
+        "status": "success",
+        "success": true,
+        "reason": "",
+        "planning_time_ms": 177.7308460000313,
+        "path_length_m": 27.739920432603014,
+        "raw_path_length_m": 27.739920432603014,
+        "waypoints": 26,
+        "raw_waypoints": 26,
+        "tree_nodes": 622,
+        "iterations": 800,
+        "rewires": 44,
+        "goal_candidates": 5,
+        "safety_margin_m": 0.6,
+        "min_clearance_m": 0.6598014477942358,
+        "distance_to_goal_m": 0.0,
+        "shortcut_length_m": 22.355453258210215,
+        "shortcut_min_clearance_m": 0.7652380846728893
+      }
+    ]
+  },
+  "C_route": {
+    "route_points": [
+      [
+        1.0,
+        1.5,
+        3.5
+      ],
+      [
+        3.7,
+        3.2,
+        3.0
+      ],
+      [
+        9.5,
+        3.8,
+        3.5
+      ],
+      [
+        13.0,
+        7.1,
+        3.8
+      ],
+      [
+        17.0,
+        5.0,
+        3.5
+      ],
+      [
+        20.5,
+        10.5,
+        3.5
+      ]
+    ],
+    "moved_viewpoints": [
+      {
+        "index": 1,
+        "from": [
+          4.5,
+          3.5,
+          3.5
+        ],
+        "to": [
+          3.7,
+          3.2,
+          3.0
+        ],
+        "distance_m": 0.9899494936611662
+      },
+      {
+        "index": 3,
+        "from": [
+          13.0,
+          7.0,
+          3.8
+        ],
+        "to": [
+          13.0,
+          7.1,
+          3.8
+        ],
+        "distance_m": 0.09999999999999964
+      }
+    ]
+  },
+  "C_A*": {
+    "route_success": true,
+    "route_length_m": 26.236506382612472,
+    "route_waypoints": 10,
+    "planning_time_ms": 88.56911899988518,
+    "min_snap": {
+      "ok": true,
+      "refinement_iterations": 1,
+      "inserted_waypoints": 3,
+      "time_scale": 1.1,
+      "clearance_before_refinement_m": 0.359126309476381,
+      "min_clearance_m": 0.624982881791581,
+      "min_clearance_lower_bound_m": 0.6082696002698026,
+      "condition_number": 6451.229895381271,
+      "duration_s": 18.58315522780443,
+      "peak_speed_mps": 3.342656304355692,
+      "peak_accel_mps2": 4.89322392739973,
+      "peak_horizontal_accel_mps2": 4.834194950422568,
+      "peak_jerk_mps3": 14.036296455197801,
+      "peak_snap_mps4": 136.1061465570418,
+      "max_tilt_deg": 29.316610929588766,
+      "max_thrust_direction_rate_rps": 1.442733921667191,
+      "max_total_thrust_N": 11.552419016354689,
+      "min_total_thrust_N": 9.90002070736064,
+      "max_mean_rotor_thrust_N": 2.888104754088672,
+      "min_mean_rotor_thrust_N": 2.47500517684016,
+      "peak_yaw_rate_rps": 1.4999525455951201,
+      "limit_max_tilt_deg": 29.999999999999996,
+      "limit_max_horizontal_accel_mps2": 6.0,
+      "limit_rotor_thrust_N": [
+        0.298,
+        9.59775156
+      ],
+      "integrated_squared_jerk": 248.49622573219713,
+      "integrated_squared_snap": 3233.4697361900894,
+      "violations": [],
+      "feasible": true
+    },
+    "min_jerk": {
+      "min_clearance_m": 0.6095116220617254,
+      "condition_number": 420.0136724094938,
+      "duration_s": 18.58315522780443,
+      "peak_speed_mps": 3.0530063365408284,
+      "peak_accel_mps2": 3.933927491831995,
+      "peak_horizontal_accel_mps2": 3.8868011209025495,
+      "peak_jerk_mps3": 21.830118530799005,
+      "peak_snap_mps4": 70.8723214890988,
+      "max_tilt_deg": 23.811622589703436,
+      "max_thrust_direction_rate_rps": 2.199213010744284,
+      "max_total_thrust_N": 10.832006678176116,
+      "min_total_thrust_N": 9.896114936091207,
+      "max_mean_rotor_thrust_N": 2.708001669544029,
+      "min_mean_rotor_thrust_N": 2.4740287340228018,
+      "peak_yaw_rate_rps": 1.4999637151345562,
+      "limit_max_tilt_deg": 29.999999999999996,
+      "limit_max_horizontal_accel_mps2": 6.0,
+      "limit_rotor_thrust_N": [
+        0.298,
+        9.59775156
+      ],
+      "integrated_squared_jerk": 161.05378147975944,
+      "integrated_squared_snap": 1803.6239089490023,
+      "violations": [],
+      "feasible": true
+    }
+  },
+  "C_RRT*": {
+    "route_success": true,
+    "route_length_m": 28.323123680374835,
+    "route_waypoints": 10,
+    "planning_time_ms": 690.3608540003461,
+    "min_snap": {
+      "ok": true,
+      "refinement_iterations": 1,
+      "inserted_waypoints": 3,
+      "time_scale": 1.1,
+      "clearance_before_refinement_m": 0.24887693893536866,
+      "min_clearance_m": 0.6435160340726902,
+      "min_clearance_lower_bound_m": 0.6244172912199626,
+      "condition_number": 13659.296890543266,
+      "duration_s": 19.453491816112084,
+      "peak_speed_mps": 3.8197485705455274,
+      "peak_accel_mps2": 4.8942976654156425,
+      "peak_horizontal_accel_mps2": 4.835363246330649,
+      "peak_jerk_mps3": 14.045308318705088,
+      "peak_snap_mps4": 135.6953255615027,
+      "max_tilt_deg": 29.32244634847873,
+      "max_thrust_direction_rate_rps": 1.4316226198121895,
+      "max_total_thrust_N": 11.546789302604212,
+      "min_total_thrust_N": 9.106879584383549,
+      "max_mean_rotor_thrust_N": 2.886697325651053,
+      "min_mean_rotor_thrust_N": 2.276719896095887,
+      "peak_yaw_rate_rps": 1.4999715905421398,
+      "limit_max_tilt_deg": 29.999999999999996,
+      "limit_max_horizontal_accel_mps2": 6.0,
+      "limit_rotor_thrust_N": [
+        0.298,
+        9.59775156
+      ],
+      "integrated_squared_jerk": 294.0170772788322,
+      "integrated_squared_snap": 3341.4735196256042,
+      "violations": [],
+      "feasible": true
+    },
+    "min_jerk": {
+      "min_clearance_m": 0.6538073527444817,
+      "condition_number": 814.2339562250168,
+      "duration_s": 19.453491816112084,
+      "peak_speed_mps": 3.2997556839027844,
+      "peak_accel_mps2": 3.9329715554759477,
+      "peak_horizontal_accel_mps2": 3.8835323757922753,
+      "peak_jerk_mps3": 21.801691231380428,
+      "peak_snap_mps4": 70.70132214303223,
+      "max_tilt_deg": 23.82818167623545,
+      "max_thrust_direction_rate_rps": 2.1908682279295406,
+      "max_total_thrust_N": 11.423830018883272,
+      "min_total_thrust_N": 9.10259644955175,
+      "max_mean_rotor_thrust_N": 2.855957504720818,
+      "min_mean_rotor_thrust_N": 2.2756491123879377,
+      "peak_yaw_rate_rps": 1.4999776653461852,
+      "limit_max_tilt_deg": 29.999999999999996,
+      "limit_max_horizontal_accel_mps2": 6.0,
+      "limit_rotor_thrust_N": [
+        0.298,
+        9.59775156
+      ],
+      "integrated_squared_jerk": 199.51920215978248,
+      "integrated_squared_snap": 1915.5281695665021,
+      "violations": [],
+      "feasible": true
+    }
+  },
+  "D_flight_A*": {
+    "Cascaded PID": {
+      "rmse_m": 0.00440635886166453,
+      "max_error_m": 0.014401765472636299,
+      "flown_min_clearance_m": 0.6265540078802783,
+      "t_flown_min_clearance_s": 5.2700000000000005,
+      "finite": true,
+      "contact_with_robot_radius": false
+    },
+    "Sliding Mode": {
+      "rmse_m": 0.004154923498842909,
+      "max_error_m": 0.011111189579097626,
+      "flown_min_clearance_m": 0.6267639969697314,
+      "t_flown_min_clearance_s": 5.2700000000000005,
+      "finite": true,
+      "contact_with_robot_radius": false
+    }
+  },
+  "D_flight_RRT*": {
+    "Cascaded PID": {
+      "rmse_m": 0.004055030947900811,
+      "max_error_m": 0.014440223465845267,
+      "flown_min_clearance_m": 0.6450329503309913,
+      "t_flown_min_clearance_s": 5.8100000000000005,
+      "finite": true,
+      "contact_with_robot_radius": false
+    },
+    "Sliding Mode": {
+      "rmse_m": 0.003941044476390784,
+      "max_error_m": 0.011155340495881844,
+      "flown_min_clearance_m": 0.6464256357568805,
+      "t_flown_min_clearance_s": 5.79,
+      "finite": true,
+      "contact_with_robot_radius": false
+    }
+  },
+  "E_anomaly_detection": {
+    "frames_hz": 5,
+    "total_detections": 119,
+    "targets_detected": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "targets_total": 4,
+    "best_geolocation_error_m": {
+      "1": 0.016089519625737708,
+      "2": 0.011743034676543116,
+      "3": 0.06142045888344595,
+      "4": 0.018502014437918244
+    }
+  }
+}
