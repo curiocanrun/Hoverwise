@@ -1,12 +1,193 @@
 # Path Planning and Trajectory Generation
 
+**Project part 2 — 3D path planning and trajectory generation · Rishika · Group 1**
+
+**Contents:** **Part A** — Practical guide (how to use, run, tune and defend the planning stack). **Part B** — Full reference (derivations, results, tests, limitations).
+
+---
+
+## Part A — Practical Guide
+
+This guide explains *how to use, run, tune and defend* the planning stack. It is the short companion to the full reference in **Part B** below, which contains every derivation, number and limitation. Read this part first; go to Part B for detail.
+
+---
+
+### 1. The big picture
+
+```
+ obstacles + bounds          waypoints (survey route)
+        │                           │
+        ▼                           ▼
+ ┌──────────────┐   path    ┌─────────────────┐  trajectory  ┌────────────┐
+ │ Environment3D│──────────▶│  plan_route     │─────────────▶│ build_safe_│──▶ reference p(t), v, a, j,
+ │  (SDF, margin)│          │ A* or RRT*      │  (waypoints) │ trajectory │    yaw, yaw rate
+ └──────────────┘           └─────────────────┘              └────────────┘
+                                                              │  min-snap / min-jerk
+                                                              │  + clearance refinement
+                                                              │  + feasibility check
+                                                              ▼
+                                                    controllers (PID / SMC)
+```
+
+Three stages, one module each:
+
+| Stage | Question it answers | File |
+|---|---|---|
+| Path planning | Which collision-free waypoints get me from A to B? | `src/path_planning.py` |
+| Trajectory generation | How do I move smoothly through them in time? | `src/trajectory.py` |
+| Pipeline / checks | Does the *smooth curve* still avoid obstacles and can the drone fly it? | `src/planning_pipeline.py` |
+
+The key lesson of the project: **a collision-free polyline is not a collision-free trajectory.** A smooth curve cuts and overshoots corners, so the pipeline re-checks the curve and adds waypoints until it is safe.
+
+---
+
+### 2. Run it
+
+From the repository root:
+
+```bash
+python -m pytest -q tests/test_planning_trajectory.py     # 37 planning/trajectory tests
+python experiments/run_experiment3_obstacle_avoidance.py   # plan -> trajectory -> flight -> vision
+python -m pytest -q tests                                  # everything (128 tests)
+```
+
+The experiment writes `results/metrics/exp3_obstacle_avoidance.{json,md}` and `results/figures/exp3_*.png`. Planning times depend on your machine; every other number is deterministic (fixed seeds).
+
+---
+
+### 3. Minimal usage example
+
+```python
+import sys; sys.path.insert(0, "src")
+import numpy as np
+from path_planning import Obstacle3D, Environment3D, AStarPlanner3D, RRTStarPlanner3D
+from planning_pipeline import plan_route, build_safe_trajectory
+from trajectory import MinimumSnapTrajectory
+from dynamics import QuadcopterParams
+
+# 1. world: bounds + obstacles; one planner margin used everywhere
+env = Environment3D(bounds=((0, 22), (0, 14), (0, 8)), safety_margin=0.6)
+env.obstacles = [
+    Obstacle3D("sphere",   center=[5, 3.5, 5],   radius=1.6),
+    Obstacle3D("cylinder", center=[5, 3.5, 0],   radius=0.5, height=3.2),   # centre z = BASE
+    Obstacle3D("box",      center=[13.5, 5.5, 2.5], size=[1.4, 1.4, 5.0]),  # size = edge lengths
+]
+
+# 2. plan a route through several points (every leg must succeed)
+route = np.array([[1, 1.5, 3.5], [9.5, 3.8, 3.5], [20.5, 10.5, 3.5]])
+path, info = plan_route(AStarPlanner3D(env, resolution=0.6), route)
+
+# 3. waypoints -> trajectory (clearance refinement + feasibility, time-scaled if needed)
+traj, report = build_safe_trajectory(path, env, required_clearance=0.45,
+                                     params=QuadcopterParams(), traj_cls=MinimumSnapTrajectory)
+print(report["ok"], report["clearance"]["min_clearance_m"], report["time_scale"])
+state = traj.evaluate(2.0)   # TrajectoryState: pos, vel, acc, jerk, yaw, yaw_rate
+```
+
+Swap in `RRTStarPlanner3D(env, max_iter=800, seed=0, shortcut=True)` to use RRT\*, or `MinimumJerkTrajectory` for `traj_cls`.
+
+**Always check the result.** A path is only valid when `info["success"]` is `True`. On failure the path is an *empty* `(0, 3)` array, never a made-up straight line:
+
+| `info["status"]` | Meaning |
+|---|---|
+| `success` | full path; every segment passed the collision check |
+| `invalid_start` / `invalid_goal` | point is out of bounds or inside the margin |
+| `no_path` | A\*: search exhausted (or `max_expansions` reached) |
+| `partial` | RRT\*: tree never reached the goal; best branch in `info["partial_path"]` |
+
+`plan_route` fails if *any* leg fails. `report["ok"]` from `build_safe_trajectory` is `True` only if both the clearance requirement and the feasibility check pass.
+
+---
+
+### 4. Concepts in plain language
+
+**Signed-distance function (SDF) and clearance.** For every obstacle there is an exact formula giving the distance from a point to its surface (negative inside). Clearance is the minimum over obstacles. Inflating obstacles by a margin *m* is the same as demanding `clearance > m`. This one idea powers every collision check.
+
+**Segment checking by bisection.** Clearance changes at most as fast as you move (it is 1-Lipschitz). If the midpoint of a sub-segment has clearance greater than `m + L/2`, the whole sub-segment is safe; if it is `≤ m`, the segment is unsafe; otherwise split in half and repeat. This is a *guarantee*, unlike sampling every few tens of centimetres, which can miss thin obstacles.
+
+**A\*.** Searches a 3D lattice (26 neighbours) with cost = Euclidean length and the straight-line-distance heuristic. It is optimal *on the lattice* only, not in continuous space, which is why RRT\* occasionally beats it after shortcutting.
+
+**RRT\*.** Grows a random tree, picks the cheapest parent among nearby nodes, then *rewires* neighbours through the new node when that is cheaper. Rewiring updates the cost of the whole subtree, so stored costs are always exact. It is only asymptotically optimal; with 800 iterations it is a good feasible planner, not an optimal one.
+
+**Shortcutting.** Greedy line-of-sight smoothing: from each waypoint, jump to the furthest waypoint you can see. It never lengthens a path.
+
+**Minimum snap / minimum jerk.** For fixed segment times, find the smooth curve through the waypoints that minimises the integral of squared snap (4th derivative) or jerk (3rd). The optimum is a polynomial per segment (degree 7 / 5), with continuity up to the 6th / 4th derivative at interior waypoints and rest at both ends. Min-snap is natural for quadrotors because thrust and attitude rates depend on the derivatives of position up to snap (differential flatness).
+
+**Time allocation.** Segment time = `max(distance / 2 m/s, 1 s)`. A heuristic, not an optimisation. If the tilt, acceleration or thrust limit is exceeded, *all* times are scaled uniformly by 1.1 until feasible. Uniform scaling keeps the geometry identical, so clearance does not change.
+
+**Yaw.** Follows the direction of travel when moving, and blends smoothly (quintic smoothstep) near stops and sharp corners, with rate limited to 1.5 rad/s. No jumps.
+
+---
+
+### 5. Knobs you can turn
+
+| Parameter | Where | Default / experiment | Effect |
+|---|---|---|---|
+| `safety_margin` | `Environment3D`, planners | 0.6 m | Obstacle inflation used by planning. Bigger = safer, longer paths, may disconnect narrow gaps. |
+| `required_clearance` | `build_safe_trajectory` | 0.45 m | What the *smooth curve* must achieve (robot radius 0.325 m + 0.125 m tracking allowance). Keep it below the planner margin. |
+| `resolution` | `AStarPlanner3D` | 0.6 m | Lattice cell size. Smaller = better paths, cost grows roughly with 1/resolution³. |
+| `max_iter`, `step_size`, `goal_bias`, `seed` | `RRTStarPlanner3D` | 800, 1.2 m, 0.15, per run | More iterations = better paths. Same seed = same result. |
+| `shortcut` | `AStarPlanner3D.plan(..., shortcut=True)`; `RRTStarPlanner3D(..., shortcut=False)` | A\*: on, RRT\*: off | Removes unnecessary waypoints. |
+| `average_speed`, `min_segment_time` | trajectory classes | 2 m/s, 1 s | Sets segment durations. |
+| `max_yaw_rate` | trajectory classes | 1.5 rad/s | Yaw blend limit. |
+| `limits` | `build_safe_trajectory` | tilt ≤ 30°, horizontal accel ≤ 6 m/s², rotor thrust within 0.298 N … 0.8·f_max | Feasibility bounds. |
+
+---
+
+### 6. Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `invalid_start` / `invalid_goal` | Point inside an obstacle or closer than the margin | Move it; `nearest_valid_point(env, p, clearance)` does this. |
+| `no_path` from A\* | Gap narrower than the inflated obstacles or lattice | Lower `safety_margin` or `resolution`. |
+| `partial` from RRT\* | Too few iterations, or no connection | Raise `max_iter`; check `distance_to_goal_m`. |
+| `report["ok"]` is False, clearance | Curve still too close after 12 refinements | Lower `required_clearance`, add waypoints by hand, or slow down. |
+| `report["ok"]` is False, feasible | Needs more than ×4 time scaling | Reduce route sharpness or raise the allowed scale. |
+| `ValueError` from `shortcut_path` | You passed it a path that is not collision-free | Shortcut only valid planner output. |
+| Tests fail on a different machine | Only timings should vary | Re-run; every other number is seeded. |
+
+---
+
+### 7. What the results show (A\* route, Sliding Mode, from Exp. 3)
+
+- Planner waypoints were collision-free, but the min-snap curve through them came within **0.359 m** (A\*) and **0.249 m** (RRT\*) of an obstacle. Refinement inserted 3 waypoints, lifting both above **0.6 m**.
+- The raw trajectory needed 34.6° tilt (limit 30°); one ×1.1 time scale brought it to 29.3°.
+- Closed-loop flight: tracking RMSE ≈ 4 mm, flown clearance ≈ 0.63–0.65 m (robot radius 0.325 m).
+- Min-snap has the lower **peak jerk** (14.0 vs 21.8 m/s³); min-jerk has the lower peak speed, acceleration and tilt. Neither wins on every measure.
+- The earlier version of the experiment planned paths, then flew a different, hand-picked trajectory that penetrated a tree canopy by 8.5 cm. That is now fixed and covered by tests.
+
+---
+
+### 8. Some questions
+
+1. **Why is a polyline that avoids obstacles not enough?** The smooth curve overshoots corners; we re-check the curve and insert waypoints.
+2. **Is A\* optimal?** Only on the lattice and its 26 directions, not in continuous space.
+3. **Is RRT\* optimal?** Only as the number of samples tends to infinity. At 800 iterations the radius is stuck at the 1.2 m cap, so we claim feasibility, not optimality.
+4. **Why does rewiring update the whole subtree?** Otherwise descendants keep stale costs and later parent choices and goal comparisons are wrong.
+5. **Why is the heuristic admissible and consistent?** Straight-line distance never overestimates, and satisfies the triangle inequality across every edge.
+6. **Why degree 7 and which continuity for min-snap?** Euler–Lagrange gives `p⁽⁸⁾ = 0`, so degree 7; free knots give C⁶ at interior waypoints.
+7. **Why normalise time per segment?** It improves conditioning about 100× (6.5×10³ vs 6.6×10⁵ in our route).
+8. **How do you know the closed-form solution is the true minimiser?** A test solves the constrained quadratic program independently and the coefficients and cost match.
+9. **What does the feasibility check not prove?** It is a point-mass, drag-only necessary check; it does not model rotor torque, motor lag or disturbances.
+10. **Does min-snap beat min-jerk?** Not on every measure: lower peak jerk, but higher peak speed, acceleration and tilt (Part A, Sec. 7).
+
+---
+
+### 9. Known limitations 
+
+Point-sphere robot model; clearance is sampled (with a proven lower bound), not certified in continuous time; refinement is heuristic; time allocation is not optimised; static known obstacles with no replanning; moved survey viewpoints are not checked for camera view. Full list: Part B, Sec. 11.
+
+---
+
+## Part B — Full Reference
+
 This document describes the path planners (`src/path_planning.py`), the trajectory generators (`src/trajectory.py`), the planner-to-trajectory pipeline (`src/planning_pipeline.py`) and the system-level obstacle-avoidance experiment (`experiments/run_experiment3_obstacle_avoidance.py`).
 
 Every result quoted below comes from `results/metrics/exp3_obstacle_avoidance.json` (written by that experiment) or from the tests in `tests/test_planning_trajectory.py`, except a few values from one-off checks run while making these changes; those are marked *(one-off check)*. Planning times depend on the machine; every other number is deterministic, because RRT*, the controllers' sensor noise and the camera's pixel noise all use fixed seeds.
 
 ---
 
-## 1. Status at a glance
+### 1. Status at a glance
 
 | Item | Status |
 |---|---|
@@ -22,7 +203,7 @@ Every result quoted below comes from `results/metrics/exp3_obstacle_avoidance.js
 
 ---
 
-## 2. Workspace, clearance and safety margins
+### 2. Workspace, clearance and safety margins
 
 **Obstacles** (`Obstacle3D`) come in three types: spheres, vertical cylinders and axis-aligned boxes. For a cylinder, `center[2]` is the *base*, and the cylinder occupies $z\in[c_z, c_z+h]$. Each obstacle has an exact signed-distance function (SDF), which is negative inside the obstacle:
 
@@ -46,7 +227,7 @@ Previously the code used three different margins: 0.4 m for A* nodes, 0.3 m for 
 
 ---
 
-## 3. Collision checking
+### 3. Collision checking
 
 **Points.** Exact SDF evaluation, vectorised over many points.
 
@@ -64,7 +245,7 @@ Sub-segments shorter than 1 mm are accepted when $\mathrm{clr}(q)>m$. An accepte
 
 ---
 
-## 4. Path planners
+### 4. Path planners
 
 Both planners return `(path, info)`. A path counts as a result only when `info["success"]` is `True`. On failure the path is an empty `(0, 3)` array and `info["status"]` is one of:
 
@@ -75,7 +256,7 @@ Both planners return `(path, info)`. A path counts as a result only when `info["
 | `no_path` | A*: the search space was exhausted, or `max_expansions` was reached |
 | `partial` | RRT*: the tree never connected to the goal; the branch to the node nearest the goal is in `info["partial_path"]` and its distance in `info["distance_to_goal_m"]` |
 
-### 4.1 A* (`AStarPlanner3D`)
+#### 4.1 A* (`AStarPlanner3D`)
 
 - **Graph.** Lattice points $x_{\min}+\Delta(i,j,k)$, where $\Delta$ is the `resolution` (0.6 m in the experiment), with 26-connectivity. A node is used only if its clearance is $>m$, and an edge only if it is valid (§3).
 - **Start and goal.** These generally do not lie on the lattice. Each is connected to the valid lattice nodes in its surrounding $3\times3\times3$ block by a checked segment. If none of these connections is valid, the result is `no_path`.
@@ -84,7 +265,7 @@ Both planners return `(path, info)`. A path counts as a result only when `info["
 - **Direct check.** If the straight start–goal segment is valid, it is returned without searching (`try_direct=True`). This is a checked result, not a fallback.
 - **Shortcutting** (§4.3) is applied to the lattice path. Both the raw and the shortcut lengths are reported.
 
-### 4.2 RRT* (`RRTStarPlanner3D`)
+#### 4.2 RRT* (`RRTStarPlanner3D`)
 
 This follows Karaman & Frazzoli (2011). Each iteration:
 
@@ -97,11 +278,11 @@ This follows Karaman & Frazzoli (2011). Each iteration:
 
 **Why step 5 matters.** The old code updated only the rewired node's own cost. Its descendants kept stale costs, which then misled later parent choices and goal comparisons. Goal nodes were also stored as tree nodes with costs fixed when they were created. Now `test_rrt_star_costs_stay_exact_after_rewiring` checks $c(i)=c(\text{parent}(i))+\lVert x_i-x_{\text{parent}(i)}\rVert$ for every node, and `test_rrt_star_rewire_updates_descendants` checks a run in which rewired nodes had children (`subtree_rewires > 0`). With the subtree update disabled, both tests fail *(one-off check: update temporarily removed)*.
 
-### 4.3 Shortcutting (`shortcut_path`)
+#### 4.3 Shortcutting (`shortcut_path`)
 
 Greedy line of sight: from waypoint $i$, jump to the furthest later waypoint $j$ whose segment $i\to j$ is valid, using the planner's margin. The shortcut path cannot be longer than the input (triangle inequality), and every kept segment has been checked. The fallback $j=i+1$ is valid only because the input path is valid, so an invalid input raises `ValueError` instead of being passed through.
 
-### 4.4 What "asymptotically optimal" does and does not mean here
+#### 4.4 What "asymptotically optimal" does and does not mean here
 
 RRT* is asymptotically optimal if $\gamma>\gamma^*=2(1+1/d)^{1/d}\big(\mu(X_{\text{free}})/\zeta_d\big)^{1/d}$, where $d=3$ and $\zeta_3=4\pi/3$ is the volume of the unit ball. The code computes $\gamma^*$ from the volume of the bounding box. This is an upper bound on $\mu(X_{\text{free}})$, so the condition still holds. With $\gamma=1.1\gamma^*$:
 
@@ -112,9 +293,9 @@ So the implementation follows the standard rule, but at this iteration budget it
 
 ---
 
-## 5. Polynomial trajectory generation
+### 5. Polynomial trajectory generation
 
-### 5.1 Problem and solution
+#### 5.1 Problem and solution
 
 Given waypoints $w_0,\dots,w_M$ and segment durations $T_0,\dots,T_{M-1}$, find a piecewise polynomial $p(t)$ for each axis that minimises
 
@@ -144,20 +325,20 @@ This corrects the previous descriptions, which said $C^3$ for minimum snap and $
 
 Because the minimum-snap curve satisfies every minimum-jerk constraint, $J_3(\text{min-jerk})\le J_3(\text{min-snap})$ (tested). The reverse comparison of snap costs is not meaningful: the minimum-jerk curve has non-zero jerk at its end points, so it is not an admissible minimum-snap candidate.
 
-### 5.2 Numerics
+#### 5.2 Numerics
 
 - **Normalised time.** Each segment uses $\tau=t/T_k\in[0,1]$ with $p_k(\tau)=\sum_i c_{k,i}\tau^i$, so $d^rp/dt^r=T_k^{-r}\,d^rp/d\tau^r$. Continuity rows are multiplied by $T_k^r$, giving $p_k^{(r)}(1)-(T_k/T_{k+1})^r p_{k+1}^{(r)}(0)=0$, and every row is scaled to unit max-norm. All three axes share one matrix.
 - **Effect.** For the final A*-route waypoints of the experiment, the condition number is 6.5 × 10³ (minimum snap) and 4.2 × 10² (minimum jerk). The previous raw-time formulation on the same waypoints gave 6.6 × 10⁵ and 1.1 × 10⁴ *(one-off check)*, so normalising improves conditioning by about 100×. A system with condition number above 10⁸ raises a warning, and above 10¹² the solve is refused. The solve residual is stored. The new formulation reproduces the old position, velocity, acceleration and jerk to within 6 × 10⁻¹⁴ (SI units), so Experiments 1–8, which use minimum snap through `missions.py`, are unchanged *(one-off check: all 4 391 numbers in `metrics_summary.json` identical before and after)*.
 - **Input validation.** Waypoints must have shape (M, 3) and be finite, with at least 2 distinct points. `average_speed`, `min_segment_time` and `time_scale` must be positive. Explicit `durations` must be M−1 positive values. **Consecutive repeated waypoints** are removed (tolerance 1 µm) and listed in `removed_waypoints`. Keeping them would force the curve to leave the point and return to it within at least 1 s. If all waypoints coincide, a `ValueError` is raised.
 
-### 5.3 Evaluation and boundaries
+#### 5.3 Evaluation and boundaries
 
 - `derivative(t, r)` returns the $r$-th time derivative for a scalar or an array of times. `evaluate(t)` returns position, velocity, acceleration, jerk, yaw and yaw rate.
 - At a joint, $t=t_k$ is assigned to segment $k$ at $\tau=0$. Because of continuity, every derivative up to order $2n-2$ is the same from either side; `test_continuity_waypoints_and_rest_conditions` checks derivatives up to order $2n-2$.
 - **Outside $[0,T]$** the reference holds the end point with zero velocity, acceleration and jerk. Before this change the last segment's polynomial derivatives were simply clamped.
 - The minimum-jerk end jerk is not zero, so its jerk steps to zero at $t=T$. This is a property of the minimum-jerk formulation.
 
-### 5.4 Time allocation
+#### 5.4 Time allocation
 
 $$T_k=\alpha\cdot\max\!\left(\frac{\lVert w_{k+1}-w_k\rVert}{v_{\text{avg}}},\ T_{\min}\right),\qquad v_{\text{avg}}=2\ \text{m/s},\ T_{\min}=1\ \text{s},$$
 
@@ -167,7 +348,7 @@ where $\alpha$ is the uniform `time_scale` (default 1); explicit durations can b
 
 ---
 
-## 6. Yaw reference
+### 6. Yaw reference
 
 Wherever the horizontal speed is above 0.1 m/s **and** that heading turns no faster than `max_yaw_rate` (1.5 rad/s), the yaw follows the velocity direction:
 
@@ -179,9 +360,9 @@ Everywhere else (take-off, stops, landing, sharp corners) the yaw blends with a 
 
 ---
 
-## 7. Checking a trajectory
+### 7. Checking a trajectory
 
-### 7.1 Clearance refinement (`build_safe_trajectory`)
+#### 7.1 Clearance refinement (`build_safe_trajectory`)
 
 The planned polyline has clearance > 0.6 m, but the smooth curve through its vertices can cut or overshoot corners. The procedure is:
 
@@ -191,7 +372,7 @@ The planned polyline has clearance > 0.6 m, but the smooth curve through its ver
 
 Splitting only the violating segment is not enough. In the experiment the violation is an *overshoot past a vertex*, so the segment that gets split is the wrong one: an earlier version of this loop inserted 12 points and stalled at 0.429 m *(one-off check)*. Splitting both neighbours of the vertex fixed it in one iteration (§9.3). `test_pipeline_refines_until_trajectory_clearance_is_met` checks the result on an L-shaped corridor at 2 ms sampling.
 
-### 7.2 Dynamic feasibility (`trajectory_feasibility`)
+#### 7.2 Dynamic feasibility (`trajectory_feasibility`)
 
 This uses a point-mass model with the same linear drag $D=\mathrm{diag}(0.15,0.15,0.25)$ as `dynamics.py`:
 
@@ -211,7 +392,7 @@ This is a **necessary check on the reference**, not a proof that a controller ca
 
 ---
 
-## 8. The integrated pipeline and experiment
+### 8. The integrated pipeline and experiment
 
 `experiments/run_experiment3_obstacle_avoidance.py`:
 
@@ -226,9 +407,9 @@ This is a **necessary check on the reference**, not a proof that a controller ca
 
 ---
 
-## 9. Results
+### 9. Results
 
-### 9.1 Audit of the previous version
+#### 9.1 Audit of the previous version
 
 | | Value |
 |---|---:|
@@ -238,7 +419,7 @@ This is a **necessary check on the reference**, not a proof that a controller ca
 
 The previous experiment planned A* and RRT* paths, discarded them, and flew through the tree-1 canopy (red dashed curve in Fig. 2).
 
-### 9.2 Planner comparison (direct start → goal query)
+#### 9.2 Planner comparison (direct start → goal query)
 
 | | A* | RRT* raw (10 seeds) | RRT* shortcut |
 |---|---:|---:|---:|
@@ -258,7 +439,7 @@ Observations:
 
 *Fig. 1 — Left: path length. Centre: planning time. Right: best start–goal cost against iteration for each RRT* seed.*
 
-### 9.3 Route → trajectory
+#### 9.3 Route → trajectory
 
 Viewpoint 1 was moved 0.99 m, from (4.5, 3.5, 3.5) to (3.7, 3.2, 3.0), out of the canopy. Viewpoint 3 was moved 0.10 m, because it was clear of obstacles by only 0.80 m and the threshold is strict.
 
@@ -295,7 +476,7 @@ Observations:
 
 *Fig. 3 — Speed, required tilt and required mean rotor thrust for the A*-route trajectories.*
 
-### 9.4 Closed-loop flight of the planner-derived trajectories
+#### 9.4 Closed-loop flight of the planner-derived trajectories
 
 Seeded sensor noise (σ_pos = 1 cm, σ_vel = 2 cm/s, σ_att = 0.3°, σ_gyro = 0.01 rad/s), dt = 0.01 s.
 
@@ -314,7 +495,7 @@ The maximum tracking error (≤ 1.44 cm) is well inside the 12.5 cm tracking all
 
 ![3D flight](../results/figures/exp3_3d_obstacle_surveillance.png)
 
-### 9.5 Anomaly detection (A* route, Sliding Mode)
+#### 9.5 Anomaly detection (A* route, Sliding Mode)
 
 119 detections at 5 Hz; all 4 targets detected. Best geolocation errors: 0.016 m (unauthorised vehicle), 0.012 m (illegal logging), 0.061 m (unusual structure), 0.019 m (wildlife).
 
@@ -322,7 +503,7 @@ The maximum tracking error (≤ 1.44 cm) is well inside the 12.5 cm tracking all
 
 ---
 
-## 10. Tests (`tests/test_planning_trajectory.py`, 37 tests)
+### 10. Tests (`tests/test_planning_trajectory.py`, 37 tests)
 
 | Area | Tests |
 |---|---|
@@ -336,7 +517,7 @@ The maximum tracking error (≤ 1.44 cm) is well inside the 12.5 cm tracking all
 
 ---
 
-## 11. Limitations
+### 11. Limitations
 
 1. **Point-robot model.** The quadcopter is treated as a 0.325 m sphere, and orientation is ignored for collision. The 0.125 m tracking allowance is chosen from observed tracking error (≤ 1.44 cm here; larger under the disturbances of Experiment 2) and is not derived formally.
 2. **Clearance is sampled.** The reported minimum has a computed lower bound, but there is no continuous-time certificate.
@@ -351,7 +532,7 @@ The maximum tracking error (≤ 1.44 cm) is well inside the 12.5 cm tracking all
 
 ---
 
-## 12. Implementation map and references
+### 12. Implementation map and references
 
 | Concept | Code |
 |---|---|

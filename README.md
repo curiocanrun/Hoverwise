@@ -191,7 +191,7 @@ python experiments/run_mujoco_verification.py
 python -m pytest -q tests
 ```
 
-The current development version passes **70 automated tests**.
+The current development version passes **128 automated tests**.
 
 ## Technical Documentation
 
