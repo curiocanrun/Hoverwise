@@ -4,8 +4,8 @@
 **Course:** Advanced Robotics  
 **Group:** Group 1  
 **Team Members:**  
-- **Rishika** (System Architecture, 3D Path Planning, & Trajectory Generation)
 - **Charitha Sri** (Kinematic Modeling, Differential Flatness, & Computer Vision Anomaly Pipeline)
+- **Rishika** (System Architecture, 3D Path Planning (A* and RRT*), & Smooth Trajectory Generation)
 - **Shreedhanvi** (Nonlinear Dynamic Simulation, RK4 Integrator, & MuJoCo Verification)
 - **Maanya Sri** (Feedback Flight Control Systems, Sliding Mode Controller, & Comparative Studies)
 
