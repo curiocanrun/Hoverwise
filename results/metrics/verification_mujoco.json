@@ -29,28 +29,28 @@
     ]
   ],
   "open_loop": {
-    "pos_diff_max_m": 0.014604801833486836,
-    "att_diff_max_deg": 0.2790112038363512,
-    "omega_diff_max": 0.0300843917531817,
-    "att_excursion_deg": 5.950481788275623
+    "pos_diff_max_m": 0.014604801833349002,
+    "att_diff_max_deg": 0.27901120383553335,
+    "omega_diff_max": 0.03008439175317386,
+    "att_excursion_deg": 5.950481788275522
   },
   "closed_loop": {
     "Cascaded PID": {
-      "rmse_engine": 0.003244002616111092,
-      "max_error_engine": 0.011917833176962045,
-      "rmse_numpy": 0.003672954305340805,
+      "rmse_engine": 0.003244002616110818,
+      "max_error_engine": 0.011917833176958492,
+      "rmse_numpy": 0.003672954305340428,
       "max_error_numpy": 0.011946945964654176,
-      "cross_engine_rms_m": 0.0011991569142084876,
-      "max_tilt_engine_deg": 23.81393399205481,
+      "cross_engine_rms_m": 0.001199156914208379,
+      "max_tilt_engine_deg": 23.813933992054007,
       "finite": true
     },
     "Sliding Mode": {
-      "rmse_engine": 0.0028025889966429175,
+      "rmse_engine": 0.0028025889966424786,
       "max_error_engine": 0.0085494898711036,
-      "rmse_numpy": 0.0033027698025340523,
-      "max_error_numpy": 0.008557350328838087,
-      "cross_engine_rms_m": 0.0013660796359731956,
-      "max_tilt_engine_deg": 24.5559309438303,
+      "rmse_numpy": 0.0033027698025336074,
+      "max_error_numpy": 0.008557350328837199,
+      "cross_engine_rms_m": 0.001366079635973405,
+      "max_tilt_engine_deg": 24.555930943829633,
       "finite": true
     }
   }

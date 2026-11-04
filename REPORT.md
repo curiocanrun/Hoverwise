@@ -201,7 +201,9 @@ with $\ddot\eta_c = K_{p}e_\eta + K_{d}\dot e_\eta + K_{i}\int e_\eta$ (PID) or 
 
 **Allocation.** $f$ from $\min_f\|S(Mf-u)\|^2$ s.t. $f_{\min}\le f_i\le f_{\max}$, solved exactly over the $3^4$ active sets, priorities roll/pitch > thrust > yaw; $M$ is derived from the existing allocation matrix.
 
-**SMC robustness (with assumptions).** Per loop, $V=\tfrac12 s^2$ gives $\dot V \le -k s^2 - (0.76K - \bar D)|s| < 0$ outside the boundary layer if $K > \bar D/0.76$, assuming a bounded disturbance $|d|\le\bar D$, exact nominal inversion, no saturation and (for the outer loop) an inner loop that is fast enough. The residual error is $|e|\lesssim \bar D/(\Lambda(k+K/\epsilon))$ — not zero. This is not a stability proof of the full saturated cascade. *(The earlier version claimed guaranteed Lyapunov stability without these assumptions; that claim has been withdrawn.)*
+**Architecture** (block diagram: `docs/figures/control_architecture.png`): position loop → thrust vector & attitude reference → attitude loop → wrench calculation (computed torque) → constrained rotor allocation → vehicle dynamics. Large position errors are clamped so a far-away target is approached at ≤ 5 m/s (xy) / 2.5 m/s (z); the tilt is resolved with the *measured* yaw; desired attitude rates use the reference jerk and yaw rate (`reference` feed-forward mode — `none` and `full` compared in Exp 4).
+
+**SMC robustness (with assumptions).** Per loop, $V=\tfrac12 s^2$ gives $\dot V \le -k s^2 - (0.76K - \bar D)|s| < 0$ outside the boundary layer if $|d| \le \bar D < 0.76K$, assuming exact nominal inversion, no saturation and (for the outer loop) an inner loop fast enough to be treated as instantaneous. For a constant $d$ the residual is $|e| = s/\Lambda$ with $k s + K\tanh(s/\epsilon) = |d|$ — not zero. Each switching gain is an assumed disturbance bound (10 m/s wind / 1.5 N → 1.43 m/s² < $K_{p,xy}$ = 2; ≈25 % payload → 2.45 m/s² < $K_{p,z}$ = 2.5; 0.1 N m → 12.3 rad/s² < $K_\eta$ = 15). **Nothing is guaranteed when a disturbance exceeds its bound**; Exp 8 checks every scenario against the bounds. This is not a stability proof of the full saturated cascade; all assumptions are listed in the guide, Sec. 8. *(The earlier version claimed guaranteed Lyapunov stability without these assumptions; that claim has been withdrawn.)*
 
 **Tuned gains** (pole placement → stage-wise sweeps on a separate tuning mission with sensor noise; `results/tuning/`): PID $\omega_{n,pos}=3.2$ rad/s, $\zeta=0.9$, $\omega_{n,att}=14$ rad/s, $\zeta_{att}=0.7$; SMC $\Lambda_p=4$, $k_p=2$, $K_p=2$, $\epsilon_p=1$, $\Lambda_\eta=12$, $k_\eta=8$, $K_\eta=15$, $\epsilon_\eta=2$.
 
@@ -296,6 +298,17 @@ This experiment evaluates planning and vision; it is not a controller benchmark.
 
 ---
 
+### Experiments 4–8: feed-forward, saturation, anti-windup, challenging references, PID vs SMC by class
+Full analysis: `docs/FEEDBACK_CONTROL_GUIDE.md` Sec. 5, 7.4, 9, 10, 15, 16; tables `results/metrics/exp4…exp8*.md`.
+
+| Exp | Finding (PID / SMC where both apply) |
+|---|---|
+| 4 feed-forward modes | `none` (η̇_d = 0): 1.2–2× position error, 2–22× attitude error. `full` best on the 1.5× faster mission (RMSE 0.050 / 0.057 m vs 0.055 / 0.079 m with `reference`) but 9–22 % more rotor-thrust variation and worse with wind + payload (SMC 0.146 vs 0.136 m); `reference` kept as default |
+| 5 allocation & saturation | rotors saturate only at f_min (1–5 % of the time, only in violent manoeuvres; f_max never reached, 0 % in nominal/disturbance flight). Constrained allocation keeps roll/pitch moments (max τ_x error from allocation 0.001 vs 0.47 N m with clipping), sacrifices yaw, and lowers RMSE by 7–8 % in the large-initial-error case |
+| 6 anti-windup | 25 m step: overshoot 0.47 m with anti-windup vs 64 m (divergent) without; 3 s thrust saturation: recovered in 3.4 s vs crash; yaw-torque saturation: 3.8° vs 45° swing; integral terms stay within their clamps |
+| 7 challenging references | 5 m/s² circle: 4–5 mm RMSE; infeasible 9 m/s² circle, steps and a 20 m/s² climb: no instability, tilt command ≤ 30°, convergence once feasible; 2 rad/s yaw spin: 1–2° RMS; 6 rad/s spin not followed (3 rad/s feed-forward bound); 170° yaw step in cruise: 5 mm cross-track (0.44 / 1.88 m if the tilt were resolved with ψ_d) |
+| 8 PID vs SMC by class | nominal: equal; sustained: PID (residual 4–8 mm vs 4–23 cm); transient: PID smaller peaks, SMC faster recovery after strong hits (0.58 vs 2.78 s); payload added: PID (2 vs 16–21 cm), payload released: SMC (0.35 vs 1.7 s). SMC residuals match the boundary-layer prediction to ≤ 3 mm; bounds exceeded in S4, T3, P1, P2 |
+
 ### MuJoCo Physics Engine Verification
 - **Status: not executed in MuJoCo in the environment where these results were generated** (MuJoCo could not be installed there). Run `pip install mujoco && python experiments/run_mujoco_verification.py`; results go to `results/mujoco/`.
 - Verified without MuJoCo (unit tests): free-joint state extraction (body-frame angular velocity), quaternion → rotation matrix (PDF 4.5) → Euler (PDF 4.4), and that the allocation matrix computed from the MJCF actuator sites and gear vectors equals the model's $M$ (rotor order, lever arms 0.159 m, spin directions, $k$ = 0.038 m).
@@ -352,11 +365,13 @@ Detailed explanation for the presentation/viva: **`docs/FEEDBACK_CONTROL_GUIDE.m
 | 8 | `trajectory.py` returned `yaw_rate = 0.0` (placeholder) | analytic yaw rate |
 | 9 | `simulation.py` time grid spacing ≠ dt; no reset of actuator state; no $F_d$ input | exact grid, resets, `disturbance_force`, seeded sensor noise, richer logs |
 | 10 | MuJoCo bridge: unconstrained allocation + silent 12 N clip, mujoco import at module level | shared constrained allocator, MJCF-vs-model allocation check, matched-physics option, lazy import |
+| 11 | (found by Exp 6) a large reference step drove the saturated PD/SMC to ≈12 m/s and an 8.3 m overshoot | position-error clamp bounding the approach speed (5 m/s xy, 2.5 m/s z); inactive for errors < ~1–2 m, so tuning and nominal results unchanged |
+| 12 | no logging of requested vs achieved wrench, no way to compare allocators or disable anti-windup | `u_raw`/`u_req`/`u` logged, allocation metrics, `RotorAllocator(method="clip")`, `CascadedPIDGains(anti_windup=False)` for the studies only |
 
 Teammates' modules were otherwise left unchanged (kinematics, path planning, vision, visualization, MJCF). Original repository backed up before changes.
 
 ### 8.2 Tests
-`python -m pytest -q tests` → 33 passed, 1 skipped (the real-MuJoCo test, skipped when MuJoCo is not installed). Covered: hover, vertical, horizontal, 3-D circle, recovery from position and attitude disturbances, allocator bounds/priority, in-flight saturation and tilt limit, anti-windup, yaw wrapping across ±180°, reset reproducibility, finite outputs for 500 random states, no sustained oscillation, roll/pitch sign conventions, PDF allocation/Jacobian/tilt consistency, MuJoCo bridge conventions and MJCF actuator layout, tuned-gain consistency.
+`python -m pytest -q tests` → 54 passed, 1 skipped (the real-MuJoCo test, skipped when MuJoCo is not installed). `tests/test_stress.py` (21 tests) adds: prolonged tilt / thrust / yaw-torque saturation with recovery and bounded integrals (and confirms windup without anti-windup), wrench-chain consistency u = M f, constrained vs clipping allocation, high-acceleration and infeasible circles, infeasible steps and climbs, continuous yaw spin, yaw step during cruise (tilt resolution), all three feed-forward modes, and the SMC boundary-layer residual prediction. Also covered: hover, vertical, horizontal, 3-D circle, recovery from position and attitude disturbances, allocator bounds/priority, in-flight saturation and tilt limit, anti-windup, yaw wrapping across ±180°, reset reproducibility, finite outputs for 500 random states, no sustained oscillation, roll/pitch sign conventions, PDF allocation/Jacobian/tilt consistency, MuJoCo bridge conventions and MJCF actuator layout, tuned-gain consistency.
 
 ---
 *Report submitted on October 31, 2026 by Group 1; feedback-control sections updated November 1, 2026.*

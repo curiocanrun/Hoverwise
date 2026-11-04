@@ -82,6 +82,8 @@ class CommonLimits:
     max_horizontal_accel: float = 6.0           # m/s^2
     max_torque: np.ndarray = _vec(1.0, 1.0, 0.3)  # N m, per-axis torque saturation
     max_yaw_error: float = np.deg2rad(30.0)     # yaw error used by the P/sliding term
+    max_approach_speed_xy: float = 5.0          # m/s, bounds the speed a large position error can command
+    max_approach_speed_z: float = 2.5           # m/s   (position-error clamp, guide Sec. 4.2)
     max_euler_rate_ff: float = 3.0              # rad/s, bound on desired Euler-rate feed-forward
     rate_feedforward: str = "reference"         # "none" | "reference" | "full"  (guide Sec. 4.7)
     tilt_from_measured_yaw: bool = True         # decouple tilt from yaw-tracking error
@@ -105,6 +107,7 @@ class CascadedPIDGains:
     Ki_pos: np.ndarray = _vec(8.192, 8.192, 14.155776)
     max_int_accel: np.ndarray = _vec(2.5, 2.5, 3.0)   # anti-windup clamp on Ki*int(e_p)  (m/s^2)
     int_zone: float = 0.3                              # integrate an axis only while |e_p| < int_zone (m)
+    anti_windup: bool = True                           # False = plain integrators (for the windup study only)
 
     Kp_att: np.ndarray = _vec(230.3, 230.3, 36.848)
     Kd_att: np.ndarray = _vec(21.35, 21.35, 8.54)
@@ -170,6 +173,23 @@ class BaseController(ABC):
         ...
 
     # ------------------------------------------------- outer-loop utilities
+    def _clamp_position_error(self, e_p, ratio):
+        """Limits the position error used by the feedback law so that, while the
+        acceleration is saturated, the vehicle approaches a far-away target at no more
+        than max_approach_speed (ratio = K_d/K_p for PID, 1/Lambda + 1/kappa for SMC: in
+        steady saturated flight e_v = -e_p_used / ratio, i.e. |v - v_d| <= v_max). Without it a
+        large step makes a saturated PD/SMC build a speed it cannot brake from in time
+        (25 m step: 8 m overshoot). Small errors (< ~1 m) are unaffected."""
+        e = e_p.copy()
+        r_xy = float(ratio[0])
+        lim_xy = self.lim.max_approach_speed_xy * r_xy
+        n = np.linalg.norm(e[:2])
+        if n > lim_xy:
+            e[:2] *= lim_xy / n
+        lim_z = self.lim.max_approach_speed_z * float(ratio[2])
+        e[2] = np.clip(e[2], -lim_z, lim_z)
+        return e
+
     def _limit_specific_force(self, f_req: np.ndarray):
         """Limits the required specific force f = a_c + g e3 (+ drag/m) so that
         thrust stays positive/bounded and the tilt stays below max_tilt_angle.
@@ -242,9 +262,9 @@ class BaseController(ABC):
         # Collective thrust: projection of the required force on the CURRENT body z-axis.
         # (Equals ||F_T|| of PDF Eq. 9.6 once R = R_d; smaller while the tilt is still wrong,
         #  which avoids pushing the vehicle in the wrong direction.)
-        T = m * float(f @ R[:, 2])
+        T_raw = m * float(f @ R[:, 2])
         T_lo, T_hi = self.allocator.thrust_limits
-        T = float(np.clip(T, T_lo, T_hi))
+        T = float(np.clip(T_raw, T_lo, T_hi))
 
         # Yaw used to resolve the tilt: measured yaw (tilt does not depend on the
         # yaw-tracking error) or desired yaw (textbook R_d of PDF Eq. 9.6).
@@ -264,7 +284,7 @@ class BaseController(ABC):
             eta_dot_d = np.array([phi_dot_d, theta_dot_d, psi_rate_d])
         eta_dot_d = np.clip(eta_dot_d, -self.lim.max_euler_rate_ff, self.lim.max_euler_rate_ff)
 
-        return dict(T=T, f=f, f_req=f_req, acc_sat=sat, R=R,
+        return dict(T=T, T_raw=T_raw, f=f, f_req=f_req, acc_sat=sat, R=R,
                     eta_d=np.array([phi_d, theta_d, wrap_angle(psi_d)]),
                     eta_dot_d=eta_dot_d, eta_dot=eta_dot_meas)
 
@@ -292,8 +312,10 @@ class BaseController(ABC):
             tau += np.cross(omega, self.I @ omega) + self.D_ang * omega
         return tau
 
-    def _finish(self, T, tau_req, diag):
-        """Torque saturation + constrained rotor allocation."""
+    def _finish(self, T, tau_req, diag, T_raw=None):
+        """Torque saturation + constrained rotor allocation.
+        Logged wrenches:  u_raw = (unclipped T, unclipped tau)  ->  u_req = after the
+        thrust/torque clips  ->  u (returned) = M f actually produced by the rotors."""
         tau = np.clip(tau_req, -self.lim.max_torque, self.lim.max_torque)
         u_req = np.array([T, *tau])
         f_rot, u_ach, alloc_sat = self.allocator.allocate(u_req)
@@ -301,6 +323,7 @@ class BaseController(ABC):
         self._thrust_limited_up = bool(alloc_sat and u_ach[0] < T - 1e-6)
         diag.update(dict(
             U_1=float(u_ach[0]), tau=u_ach[1:].copy(), tau_req=tau_req, u_req=u_req,
+            u_raw=np.array([T if T_raw is None else T_raw, *tau_req]),
             f=f_rot, torque_sat=np.abs(tau_req) > self.lim.max_torque, alloc_sat=alloc_sat,
         ))
         return u_ach, diag
@@ -338,7 +361,8 @@ class CascadedPIDController(BaseController):
         # ------------------------- OUTER LOOP: position PID -------------------
         e_p = np.asarray(p_d) - x[0:3]
         e_v = np.asarray(v_d) - x[3:6]
-        a_pd = np.asarray(a_d) + G.Kp_pos * e_p + G.Kd_pos * e_v
+        e_pc = self._clamp_position_error(e_p, G.Kd_pos / G.Kp_pos)
+        a_pd = np.asarray(a_d) + G.Kp_pos * e_pc + G.Kd_pos * e_v
         a_c = a_pd + G.Ki_pos * self.int_pos
 
         # thrust vector + limits (needed before integrating, for anti-windup)
@@ -351,9 +375,12 @@ class CascadedPIDController(BaseController):
         freeze |= np.abs(e_p) > G.int_zone                # integral separation (large transients)
         if self._thrust_limited_up and e_p[2] > 0:
             freeze[2] = True
+        if not G.anti_windup:
+            freeze[:] = False
         self.int_pos = np.where(freeze, self.int_pos, self.int_pos + e_p * dt)
-        lim_int = G.max_int_accel / np.maximum(G.Ki_pos, 1e-9)
-        self.int_pos = np.clip(self.int_pos, -lim_int, lim_int)
+        if G.anti_windup:
+            lim_int = G.max_int_accel / np.maximum(G.Ki_pos, 1e-9)
+            self.int_pos = np.clip(self.int_pos, -lim_int, lim_int)
 
         # Derivative of a_c (for the desired attitude rates).
         if self.lim.rate_feedforward == "full":
@@ -373,17 +400,18 @@ class CascadedPIDController(BaseController):
 
         # attitude integral with anti-windup (freeze on torque saturation)
         tau_sat = np.abs(tau_req) > self.lim.max_torque
-        freeze_att = tau_sat & (np.sign(e_eta) == np.sign(tau_req))
+        freeze_att = tau_sat & (np.sign(e_eta) == np.sign(tau_req)) & G.anti_windup
         self.int_att = np.where(freeze_att, self.int_att, self.int_att + e_eta_p * dt)
-        lim_ia = G.max_int_att / np.maximum(G.Ki_att, 1e-9)
-        self.int_att = np.clip(self.int_att, -lim_ia, lim_ia)
+        if G.anti_windup:
+            lim_ia = G.max_int_att / np.maximum(G.Ki_att, 1e-9)
+            self.int_att = np.clip(self.int_att, -lim_ia, lim_ia)
 
         diag = dict(e_pos=e_p, e_vel=e_v, e_att=e_eta, e_att_dot=e_eta_dot, a_cmd=a_c,
                     eta_d=ref["eta_d"], eta_dot_d=ref["eta_dot_d"],
                     phi_d=ref["eta_d"][0], theta_d=ref["eta_d"][1], psi_d=ref["eta_d"][2],
                     tilt_sat=bool(ref["acc_sat"][:2].any()),
                     int_pos=self.int_pos.copy(), int_att=self.int_att.copy())
-        return self._finish(ref["T"], tau_req, diag)
+        return self._finish(ref["T"], tau_req, diag, ref["T_raw"])
 
 
 # =============================================================================
@@ -423,7 +451,10 @@ class SlidingModeController(BaseController):
         # ------------------------- OUTER LOOP: position SMC -------------------
         e_p = np.asarray(p_d) - x[0:3]
         e_v = np.asarray(v_d) - x[3:6]
-        s_p = e_v + G.lambda_p * e_p
+        # steady saturated flight (a_c = 0, inside the layer): |v - v_d| = Lam e / (1 + Lam/kappa),
+        # kappa = k + K/eps  ->  ratio = 1/Lam + 1/kappa gives an approach speed of max_approach_speed
+        ratio = 1.0 / G.lambda_p + 1.0 / (G.k_p + G.K_p / G.eps_p)
+        s_p = e_v + G.lambda_p * self._clamp_position_error(e_p, ratio)
         sw_p = np.tanh(s_p / G.eps_p)
         a_c = np.asarray(a_d) + G.lambda_p * e_v + G.k_p * s_p + G.K_p * sw_p
 
@@ -450,4 +481,4 @@ class SlidingModeController(BaseController):
                     eta_d=ref["eta_d"], eta_dot_d=ref["eta_dot_d"],
                     phi_d=ref["eta_d"][0], theta_d=ref["eta_d"][1], psi_d=ref["eta_d"][2],
                     tilt_sat=bool(ref["acc_sat"][:2].any()))
-        return self._finish(ref["T"], tau_req, diag)
+        return self._finish(ref["T"], tau_req, diag, ref["T_raw"])

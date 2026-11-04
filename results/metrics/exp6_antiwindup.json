@@ -1,0 +1,101 @@
+{
+  "description": "Experiment 6 anti-windup",
+  "metrics": {
+    "W1 tilt saturation (25 m step)": {
+      "PID, anti-windup ON": {
+        "rmse": 8.294484120938796,
+        "max_error": 25.00114439467135,
+        "yaw_err_max_deg": 0.1680057310520855,
+        "finite": true,
+        "max_int_accel_pos": 0.42039204880168396,
+        "max_int_accel_att": 4.0,
+        "overshoot_m": 0.466100776188469,
+        "settling_5cm_s": 6.76
+      },
+      "PID, anti-windup OFF": {
+        "rmse": 54.78961548610326,
+        "max_error": 149.3326043041481,
+        "yaw_err_max_deg": 8.70944686724041,
+        "finite": true,
+        "max_int_accel_pos": 2951.118901089981,
+        "max_int_accel_att": 36.62672904085835,
+        "overshoot_m": 63.863531594561664,
+        "settling_5cm_s": NaN
+      },
+      "SMC (no integrator)": {
+        "rmse": 9.287247751317812,
+        "max_error": 25.00117238607356,
+        "yaw_err_max_deg": 0.17544147616122563,
+        "finite": true,
+        "overshoot_m": 0.0029316556265612803,
+        "settling_5cm_s": 8.23
+      }
+    },
+    "W2 thrust saturation (6.5 N down, 3 s)": {
+      "PID, anti-windup ON": {
+        "rmse": 2.260090538308972,
+        "max_error": 5.874937255515304,
+        "yaw_err_max_deg": 0.170561480588142,
+        "finite": true,
+        "max_int_accel_pos": 0.7337540807731346,
+        "max_int_accel_att": 2.2462068958479384,
+        "min_altitude_m": 4.125063313588555,
+        "overshoot_m": 0.03449093912201917,
+        "recovery_5cm_s": 3.3499999999999996
+      },
+      "PID, anti-windup OFF": {
+        "rmse": 9.675882899315326,
+        "max_error": 20.49961274455109,
+        "yaw_err_max_deg": 0.1814165215865819,
+        "finite": true,
+        "max_int_accel_pos": 842.8181200958153,
+        "max_int_accel_att": 2.0787210950849127,
+        "min_altitude_m": 0.0,
+        "overshoot_m": 20.499612700116806,
+        "recovery_5cm_s": NaN
+      },
+      "SMC (no integrator)": {
+        "rmse": 2.2795181577083414,
+        "max_error": 5.754383182694048,
+        "yaw_err_max_deg": 0.1396414757608006,
+        "finite": true,
+        "min_altitude_m": 4.2456172138291075,
+        "overshoot_m": 0.0011890011694575264,
+        "recovery_5cm_s": 4.0600000000000005
+      }
+    },
+    "W3 yaw-torque saturation (0.33 N m, 1.5 s)": {
+      "PID, anti-windup ON": {
+        "rmse": 0.0031311176408452632,
+        "max_error": 0.006090852552160919,
+        "yaw_err_max_deg": 154.53423171737109,
+        "finite": true,
+        "max_int_accel_pos": 0.045688120344671554,
+        "max_int_accel_att": 1.377136672500953,
+        "yaw_max_drift_deg": 154.53423171737109,
+        "yaw_overshoot_deg": 3.7607276618605234,
+        "recovery_5deg_s": 1.3100000000000005
+      },
+      "PID, anti-windup OFF": {
+        "rmse": 0.0031330562415205834,
+        "max_error": 0.0060639598525961385,
+        "yaw_err_max_deg": 154.51559633122037,
+        "finite": true,
+        "max_int_accel_pos": 0.04578677206321667,
+        "max_int_accel_att": 23.689671452026296,
+        "yaw_max_drift_deg": 154.51559633122037,
+        "yaw_overshoot_deg": 44.71433200367367,
+        "recovery_5deg_s": 3.8600000000000003
+      },
+      "SMC (no integrator)": {
+        "rmse": 0.0029289024244231105,
+        "max_error": 0.005433981965603795,
+        "yaw_err_max_deg": 159.8295455785376,
+        "finite": true,
+        "yaw_max_drift_deg": 159.8295455785376,
+        "yaw_overshoot_deg": 0.02148766367627008,
+        "recovery_5deg_s": 2.59
+      }
+    }
+  }
+}
