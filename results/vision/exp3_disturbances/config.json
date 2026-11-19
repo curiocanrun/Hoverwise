@@ -1,0 +1,442 @@
+{
+  "description": "Exp 3: disturbances and noisy vision",
+  "simulator": "custom NumPy RK4 simulator (src/dynamics.py) + synthetic camera renderer (src/vision_renderer.py)",
+  "camera": {
+    "width": 320,
+    "height": 240,
+    "hfov_deg": 80.0,
+    "vfov_deg": 64.3664437730972,
+    "fx": 190.6805748150736,
+    "fy": 190.6805748150736,
+    "cx": 160.0,
+    "cy": 120.0,
+    "offset_body": [
+      0.0,
+      0.0,
+      -0.05
+    ],
+    "R_bc": [
+      [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        -1.0
+      ]
+    ]
+  },
+  "ibvs_gains": {
+    "lam": [
+      1.3,
+      1.3,
+      1.2,
+      0.8
+    ],
+    "lam_i": [
+      0.6,
+      0.6,
+      0.0,
+      0.6
+    ],
+    "int_limit": 1.5,
+    "int_zone": [
+      0.3,
+      0.3,
+      0.3,
+      0.3
+    ],
+    "v_max_xy": 1.5,
+    "v_max_z": 0.8,
+    "w_max": 0.8,
+    "depth_mode": "estimated",
+    "Z_min": 0.5,
+    "tau_coast": 0.3,
+    "t_hover": 0.5,
+    "t_search": 2.0,
+    "v_search": 0.3,
+    "z_search_max": 6.0
+  },
+  "setpoint_params": {
+    "tau_v": 0.15,
+    "a_max_xy": 1.5,
+    "a_max_z": 1.0,
+    "leash": 0.6,
+    "yaw_leash": 0.5
+  },
+  "controller_gains": {
+    "Cascaded PID": {
+      "Kp_pos": [
+        14.848,
+        14.848,
+        21.38112
+      ],
+      "Kd_pos": [
+        6.56,
+        6.56,
+        7.872
+      ],
+      "Ki_pos": [
+        8.192,
+        8.192,
+        14.155776
+      ],
+      "max_int_accel": [
+        2.5,
+        2.5,
+        3.0
+      ],
+      "int_zone": 0.3,
+      "anti_windup": true,
+      "Kp_att": [
+        230.3,
+        230.3,
+        36.848
+      ],
+      "Kd_att": [
+        21.35,
+        21.35,
+        8.54
+      ],
+      "Ki_att": [
+        343.0,
+        343.0,
+        21.952
+      ],
+      "max_int_att": [
+        4.0,
+        4.0,
+        1.0
+      ],
+      "limits": {
+        "max_tilt_angle": 0.5235987755982988,
+        "max_up_accel": 5.0,
+        "min_specific_thrust": 3.9240000000000004,
+        "max_horizontal_accel": 6.0,
+        "max_torque": [
+          1.0,
+          1.0,
+          0.3
+        ],
+        "max_yaw_error": 0.5235987755982988,
+        "max_approach_speed_xy": 5.0,
+        "max_approach_speed_z": 2.5,
+        "max_euler_rate_ff": 3.0,
+        "rate_feedforward": "reference",
+        "tilt_from_measured_yaw": true,
+        "drag_compensation": true,
+        "rotational_compensation": true
+      }
+    },
+    "Sliding Mode": {
+      "lambda_p": [
+        4.0,
+        4.0,
+        4.8
+      ],
+      "k_p": [
+        2.0,
+        2.0,
+        2.4
+      ],
+      "K_p": [
+        2.0,
+        2.0,
+        2.5
+      ],
+      "eps_p": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "lambda_att": [
+        12.0,
+        12.0,
+        4.8
+      ],
+      "k_att": [
+        8.0,
+        8.0,
+        3.2
+      ],
+      "K_att": [
+        15.0,
+        15.0,
+        3.0
+      ],
+      "eps_att": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "limits": {
+        "max_tilt_angle": 0.5235987755982988,
+        "max_up_accel": 5.0,
+        "min_specific_thrust": 3.9240000000000004,
+        "max_horizontal_accel": 6.0,
+        "max_torque": [
+          1.0,
+          1.0,
+          0.3
+        ],
+        "max_yaw_error": 0.5235987755982988,
+        "max_approach_speed_xy": 5.0,
+        "max_approach_speed_z": 2.5,
+        "max_euler_rate_ff": 3.0,
+        "rate_feedforward": "reference",
+        "tilt_from_measured_yaw": true,
+        "drag_compensation": true,
+        "rotational_compensation": true
+      }
+    }
+  },
+  "runs": {
+    "nominal": {
+      "config": {
+        "dt": 0.01,
+        "t_end": 16.0,
+        "camera_rate_hz": 25.0,
+        "latency_frames": 0,
+        "Z_star": 2.5,
+        "measurement_noise": {
+          "pos": 0.01,
+          "vel": 0.02,
+          "att": 0.005235987755982988,
+          "gyro": 0.01
+        },
+        "position_bias": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "detection_dropout": 0.0,
+        "seed": 301,
+        "wind_fn": null,
+        "force_fn": null,
+        "torque_fn": null,
+        "record_frames": [
+          7.0,
+          15.96
+        ]
+      },
+      "degradation": null
+    },
+    "image_noise": {
+      "config": {
+        "dt": 0.01,
+        "t_end": 16.0,
+        "camera_rate_hz": 25.0,
+        "latency_frames": 0,
+        "Z_star": 2.5,
+        "measurement_noise": {
+          "pos": 0.01,
+          "vel": 0.02,
+          "att": 0.005235987755982988,
+          "gyro": 0.01
+        },
+        "position_bias": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "detection_dropout": 0.0,
+        "seed": 301,
+        "wind_fn": null,
+        "force_fn": null,
+        "torque_fn": null,
+        "record_frames": [
+          7.0,
+          15.96
+        ]
+      },
+      "degradation": {
+        "pixel_noise_std": 20.0,
+        "brightness": 0.7,
+        "occlusion_windows": []
+      }
+    },
+    "dropout_latency": {
+      "config": {
+        "dt": 0.01,
+        "t_end": 16.0,
+        "camera_rate_hz": 25.0,
+        "latency_frames": 2,
+        "Z_star": 2.5,
+        "measurement_noise": {
+          "pos": 0.01,
+          "vel": 0.02,
+          "att": 0.005235987755982988,
+          "gyro": 0.01
+        },
+        "position_bias": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "detection_dropout": 0.3,
+        "seed": 301,
+        "wind_fn": null,
+        "force_fn": null,
+        "torque_fn": null,
+        "record_frames": [
+          7.0,
+          15.96
+        ]
+      },
+      "degradation": null
+    },
+    "wind_step": {
+      "config": {
+        "dt": 0.01,
+        "t_end": 16.0,
+        "camera_rate_hz": 25.0,
+        "latency_frames": 0,
+        "Z_star": 2.5,
+        "measurement_noise": {
+          "pos": 0.01,
+          "vel": 0.02,
+          "att": 0.005235987755982988,
+          "gyro": 0.01
+        },
+        "position_bias": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "detection_dropout": 0.0,
+        "seed": 301,
+        "force_fn": null,
+        "torque_fn": null,
+        "record_frames": [
+          7.0,
+          15.96
+        ]
+      },
+      "degradation": null
+    },
+    "gust": {
+      "config": {
+        "dt": 0.01,
+        "t_end": 16.0,
+        "camera_rate_hz": 25.0,
+        "latency_frames": 0,
+        "Z_star": 2.5,
+        "measurement_noise": {
+          "pos": 0.01,
+          "vel": 0.02,
+          "att": 0.005235987755982988,
+          "gyro": 0.01
+        },
+        "position_bias": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "detection_dropout": 0.0,
+        "seed": 301,
+        "force_fn": null,
+        "torque_fn": null,
+        "record_frames": [
+          7.0,
+          15.96
+        ]
+      },
+      "degradation": null
+    },
+    "occlusion": {
+      "config": {
+        "dt": 0.01,
+        "t_end": 16.0,
+        "camera_rate_hz": 25.0,
+        "latency_frames": 0,
+        "Z_star": 2.5,
+        "measurement_noise": {
+          "pos": 0.01,
+          "vel": 0.02,
+          "att": 0.005235987755982988,
+          "gyro": 0.01
+        },
+        "position_bias": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "detection_dropout": 0.0,
+        "seed": 301,
+        "wind_fn": null,
+        "force_fn": null,
+        "torque_fn": null,
+        "record_frames": [
+          7.0,
+          15.96
+        ]
+      },
+      "degradation": {
+        "pixel_noise_std": 0.0,
+        "brightness": 1.0,
+        "occlusion_windows": [
+          [
+            6.0,
+            8.5
+          ]
+        ]
+      }
+    },
+    "combined": {
+      "config": {
+        "dt": 0.01,
+        "t_end": 16.0,
+        "camera_rate_hz": 25.0,
+        "latency_frames": 1,
+        "Z_star": 2.5,
+        "measurement_noise": {
+          "pos": 0.01,
+          "vel": 0.02,
+          "att": 0.005235987755982988,
+          "gyro": 0.01
+        },
+        "position_bias": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "detection_dropout": 0.2,
+        "seed": 301,
+        "force_fn": null,
+        "torque_fn": null,
+        "record_frames": [
+          7.0,
+          15.96
+        ]
+      },
+      "degradation": {
+        "pixel_noise_std": 20.0,
+        "brightness": 0.7,
+        "occlusion_windows": []
+      }
+    }
+  },
+  "seeds": [
+    301,
+    302,
+    303,
+    304,
+    305
+  ],
+  "initial_state": {
+    "p": [
+      1.2,
+      -0.9,
+      3.5
+    ],
+    "yaw_deg": 30.0
+  },
+  "t_disturbance": 6.0
+}
